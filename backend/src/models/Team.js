@@ -29,6 +29,29 @@ module.exports = (sequelize) => {
       type: DataTypes.INTEGER,
       field: 'owner_id'
     },
+    ownerName: {
+      type: DataTypes.STRING(100),
+      field: 'owner_name'
+    },
+    tagline: {
+      type: DataTypes.STRING(255),
+      allowNull: true
+    },
+    logoImage: {
+      type: DataTypes.STRING(255),
+      field: 'logo_image'
+    },
+    sponsors: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      get() {
+        const rawValue = this.getDataValue('sponsors');
+        return rawValue ? JSON.parse(rawValue) : [];
+      },
+      set(value) {
+        this.setDataValue('sponsors', JSON.stringify(value));
+      }
+    },
     initialPurse: {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: false,
@@ -61,12 +84,15 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'teams',
     timestamps: true,
-    underscored: true,
+    underscored: false,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
     indexes: [
       { fields: ['season_id'] },
       { fields: ['owner_id'] },
       { fields: ['name'] },
-      { fields: ['remaining_purse'] }
+      { fields: ['remaining_purse'] },
+      { fields: ['owner_name'] }
     ]
   });
 

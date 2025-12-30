@@ -5,6 +5,7 @@ const { sequelize } = require('./src/models');
 const logger = require('./src/utils/logger');
 const http = require('http');
 const socketHandler = require('./src/socket/socketHandler');
+const seedDatabase = require('./src/seeders/seedDatabase');
 
 const PORT = process.env.PORT || 5000;
 
@@ -23,8 +24,11 @@ const connectDB = async () => {
     // Sync models (use {alter: true} only in development)
     // In production, use migrations instead
     if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: false }); // Set to false to prevent auto-altering tables
+      await sequelize.sync({ alter: true }); // Set to true to auto-create/update columns
       logger.info('✅ Database models synchronized');
+      
+      // Seed default data
+      await seedDatabase();
     }
   } catch (error) {
     logger.error('❌ Database connection failed:', error);
