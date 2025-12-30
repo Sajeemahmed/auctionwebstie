@@ -1,4 +1,5 @@
 // server.js
+require('dotenv').config();
 const app = require('./src/app');
 const { sequelize } = require('./src/models');
 const logger = require('./src/utils/logger');
@@ -6,7 +7,6 @@ const http = require('http');
 const socketHandler = require('./src/socket/socketHandler');
 
 const PORT = process.env.PORT || 5000;
-const SOCKET_PORT = process.env.SOCKET_PORT || 5001;
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -20,9 +20,12 @@ const connectDB = async () => {
     await sequelize.authenticate();
     logger.info('✅ MySQL Database connected successfully');
     
-    // Sync models (use {force: true} only in development to recreate tables)
-    await sequelize.sync({ alter: true });
-    logger.info('✅ Database models synchronized');
+    // Sync models (use {alter: true} only in development)
+    // In production, use migrations instead
+    if (process.env.NODE_ENV === 'development') {
+      await sequelize.sync({ alter: false }); // Set to false to prevent auto-altering tables
+      logger.info('✅ Database models synchronized');
+    }
   } catch (error) {
     logger.error('❌ Database connection failed:', error);
     process.exit(1);
@@ -37,7 +40,7 @@ const startServer = async () => {
     logger.info(`🚀 Server running on port ${PORT}`);
     logger.info(`🌐 API: http://localhost:${PORT}/api`);
     logger.info(`⚡ Socket.IO running on port ${PORT}`);
-    logger.info(`📝 Environment: ${process.env.NODE_ENV}`);
+    logger.info(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
 };
 
@@ -47,6 +50,15 @@ process.on('SIGTERM', () => {
   server.close(() => {
     logger.info('HTTP server closed');
     sequelize.close();
+  });
+});
+
+process.on('SIGINT', () => {
+  logger.info('SIGINT signal received: closing HTTP server');
+  server.close(() => {
+    logger.info('HTTP server closed');
+    sequelize.close();
+    process.exit(0);
   });
 });
 
