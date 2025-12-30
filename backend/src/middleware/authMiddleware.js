@@ -6,7 +6,13 @@ const ApiResponse = require('../utils/response');
 const authMiddleware = async (req, res, next) => {
   try {
     // Get token from header
-    const token = req.headers.authorization?.split(' ')[1]; // Bearer TOKEN
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return ApiResponse.unauthorized(res, 'No token provided');
+    }
+
+    const token = authHeader.split(' ')[1];
 
     if (!token) {
       return ApiResponse.unauthorized(res, 'No token provided');

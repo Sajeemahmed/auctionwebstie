@@ -7,8 +7,10 @@ const fs = require('fs');
 const uploadsDir = path.join(__dirname, '../../uploads');
 const playersDir = path.join(uploadsDir, 'players');
 const excelDir = path.join(uploadsDir, 'excel');
+const teamsDir = path.join(uploadsDir, 'teams');  // NEW
+const sponsorsDir = path.join(uploadsDir, 'sponsors');  // NEW
 
-[uploadsDir, playersDir, excelDir].forEach(dir => {
+[uploadsDir, playersDir, excelDir, teamsDir, sponsorsDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -22,6 +24,28 @@ const playerStorage = multer.diskStorage({
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, 'player-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// Storage for team logos  -- NEW
+const teamLogoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, teamsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'team-logo-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// Storage for sponsor logos  -- NEW
+const sponsorLogoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, sponsorsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'sponsor-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
@@ -68,6 +92,18 @@ const uploadPlayerPhoto = multer({
   fileFilter: imageFilter
 }).single('photo');
 
+const uploadTeamLogo = multer({  // NEW
+  storage: teamLogoStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: imageFilter
+}).single('logo');
+
+const uploadSponsorLogo = multer({  // NEW
+  storage: sponsorLogoStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: imageFilter
+}).single('sponsorLogo');
+
 const uploadExcel = multer({
   storage: excelStorage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
@@ -76,5 +112,7 @@ const uploadExcel = multer({
 
 module.exports = {
   uploadPlayerPhoto,
+  uploadTeamLogo,      // NEW
+  uploadSponsorLogo,   // NEW
   uploadExcel
 };
