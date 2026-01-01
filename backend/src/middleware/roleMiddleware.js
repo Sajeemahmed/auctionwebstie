@@ -60,4 +60,4 @@ module.exports = {
   isAdmin,
   isTeamOwner,
   isAdminOrOwner
-};
+}; 

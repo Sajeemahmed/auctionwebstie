@@ -14,10 +14,10 @@ const createTeam = async (req, res, next) => {
       shortName, 
       seasonId, 
       ownerId, 
-      ownerName,      // NEW
-      tagline,        // NEW
-      logoImage,      // NEW
-      sponsors,       // NEW
+      ownerName,
+      tagline,
+      logoImage,
+      sponsors,
       initialPurse, 
       logoUrl 
     } = req.body;
@@ -61,15 +61,31 @@ const createTeam = async (req, res, next) => {
 
     const purse = initialPurse || 10000000;
 
-    // Parse sponsors if it's a string
-    let parsedSponsors = sponsors;
-    if (typeof sponsors === 'string') {
-      try {
-        parsedSponsors = JSON.parse(sponsors);
-      } catch (e) {
-        parsedSponsors = [];
+    // Parse sponsors - handle both string and array
+    let parsedSponsors = [];
+    if (sponsors) {
+      if (typeof sponsors === 'string') {
+        try {
+          parsedSponsors = JSON.parse(sponsors);
+        } catch (e) {
+          logger.warn('Failed to parse sponsors JSON:', e);
+          parsedSponsors = [];
+        }
+      } else if (Array.isArray(sponsors)) {
+        parsedSponsors = sponsors;
       }
     }
+
+    // Log what we're creating
+    logger.info('Creating team with data:', {
+      name,
+      shortName,
+      ownerName: resolvedOwnerName,
+      tagline,
+      sponsorsCount: parsedSponsors.length,
+      logoImage,
+      logoUrl
+    });
 
     // Create team
     const team = await Team.create({
@@ -77,23 +93,27 @@ const createTeam = async (req, res, next) => {
       shortName: shortName || name.substring(0, 3).toUpperCase(),
       seasonId,
       ownerId: ownerId || null,
-      ownerName: resolvedOwnerName || null,  // NEW
-      tagline: tagline || null,              // NEW
-      logoImage: logoImage || null,          // NEW
-      sponsors: parsedSponsors || [],        // NEW
+      ownerName: resolvedOwnerName || null,
+      tagline: tagline || null,
+      logoImage: logoImage || null,
+      logoUrl: logoUrl || null,
+      sponsors: parsedSponsors,
       initialPurse: purse,
       remainingPurse: purse,
       maxSquadSize: 15,
       currentSquadSize: 0,
-      logoUrl: logoUrl || null,
       isActive: true
     });
 
+    // Fetch the created team to verify
+    const createdTeam = await Team.findByPk(team.id);
+
     logger.info(`Team created: ${team.name} (ID: ${team.id}) - Initial Purse: ₹${purse}`);
+    logger.info('Sponsors saved:', createdTeam.sponsors);
 
     return response.success(
       res,
-      team,
+      createdTeam,
       'Team created successfully',
       201
     );

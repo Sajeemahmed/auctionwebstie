@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogIn, User, Lock, Eye, EyeOff, Trophy, Users, Gavel, Loader2 } from 'lucide-react';
+import { LogIn, User, Lock, Eye, EyeOff, Trophy, Users, Gavel, Loader2, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -273,19 +273,34 @@ const LoginPage = () => {
                       </div>
                     </div>
 
-                    <motion.div className="mt-4 text-center">
-                      <a
-                        href="/live"
-                        className="text-sm text-gray-400 hover:text-[#E50914] flex items-center justify-center gap-2 transition-colors"
+                    <div className="mt-4 space-y-3">
+                      <motion.div className="text-center">
+                        <a
+                          href="/live"
+                          className="text-sm text-gray-400 hover:text-[#E50914] flex items-center justify-center gap-2 transition-colors"
+                        >
+                          <motion.span
+                            animate={{ scale: [1, 1.3, 1] }}
+                            transition={{ duration: 1.5, repeat: Infinity }}
+                            className="w-2 h-2 rounded-full bg-[#E50914]"
+                          />
+                          Watch Live Auction
+                        </a>
+                      </motion.div>
+
+                      <motion.div
+                        className="text-center pt-3 border-t border-[#333]"
+                        whileHover={{ scale: 1.02 }}
                       >
-                        <motion.span
-                          animate={{ scale: [1, 1.3, 1] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                          className="w-2 h-2 rounded-full bg-[#E50914]"
-                        />
-                        Watch Live Auction
-                      </a>
-                    </motion.div>
+                        <a
+                          href="/register-player"
+                          className="text-sm text-gray-400 hover:text-primary flex items-center justify-center gap-2 transition-colors"
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          Register as a Player
+                        </a>
+                      </motion.div>
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>

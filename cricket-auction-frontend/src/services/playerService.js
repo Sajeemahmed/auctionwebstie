@@ -2,6 +2,69 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const playerService = {
+  // Get all players with filters
+  getAllPlayers: async (filters = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (filters.seasonId) queryParams.append('seasonId', filters.seasonId);
+      if (filters.category) queryParams.append('category', filters.category);
+      if (filters.status) queryParams.append('status', filters.status);
+      if (filters.teamId) queryParams.append('teamId', filters.teamId);
+
+      const url = `${API_BASE_URL}/players${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch players');
+      }
+
+      const data = await response.json();
+      return { success: true, data: data.data || [] };
+    } catch (error) {
+      console.error('Error fetching players:', error);
+      return { success: false, error: error.message, data: [] };
+    }
+  },
+
+  // Get player by ID
+  getPlayerById: async (playerId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/players/${playerId}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch player');
+      }
+
+      const data = await response.json();
+      return { success: true, data: data.data };
+    } catch (error) {
+      console.error('Error fetching player:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Get player statistics
+  getPlayerStats: async (seasonId = null) => {
+    try {
+      const url = seasonId 
+        ? `${API_BASE_URL}/players/stats?seasonId=${seasonId}`
+        : `${API_BASE_URL}/players/stats`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch player stats');
+      }
+
+      const data = await response.json();
+      return { success: true, data: data.data };
+    } catch (error) {
+      console.error('Error fetching player stats:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
   // Create a new player
   createPlayer: async (playerData) => {
     try {
@@ -26,77 +89,30 @@ const playerService = {
     }
   },
 
-  // Get all players
-  getAllPlayers: async (filters = {}) => {
+  // Bulk upload players from Excel
+  bulkUploadPlayers: async (excelFile, seasonId) => {
     try {
-      const queryParams = new URLSearchParams();
-      if (filters.seasonId) queryParams.append('seasonId', filters.seasonId);
-      if (filters.teamId) queryParams.append('teamId', filters.teamId);
-      if (filters.status) queryParams.append('status', filters.status);
+      const formData = new FormData();
+      formData.append('file', excelFile);
+      formData.append('seasonId', seasonId);
 
-      const url = `${API_BASE_URL}/players${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      console.log('Uploading Excel file for seasonId:', seasonId);
 
-      const response = await fetch(url);
+      const response = await fetch(`${API_BASE_URL}/players/bulk-upload`, {
+        method: 'POST',
+        body: formData
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch players');
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to upload players');
       }
 
       const data = await response.json();
+      console.log('Upload result:', data);
       return { success: true, data: data.data };
     } catch (error) {
-      console.error('Error fetching players:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  // Get player by ID
-  getPlayerById: async (playerId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/players/${playerId}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch player');
-      }
-
-      const data = await response.json();
-      return { success: true, data: data.data };
-    } catch (error) {
-      console.error('Error fetching player:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  // Get players by season
-  getPlayersBySeason: async (seasonId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/players/season/${seasonId}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch players');
-      }
-
-      const data = await response.json();
-      return { success: true, data: data.data };
-    } catch (error) {
-      console.error('Error fetching players by season:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  // Get players by team
-  getPlayersByTeam: async (teamId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/players/team/${teamId}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch players');
-      }
-
-      const data = await response.json();
-      return { success: true, data: data.data };
-    } catch (error) {
-      console.error('Error fetching players by team:', error);
+      console.error('Error uploading players:', error);
       return { success: false, error: error.message };
     }
   },
@@ -121,6 +137,33 @@ const playerService = {
       return { success: true, data: data.data };
     } catch (error) {
       console.error('Error updating player:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Upload player photo
+  uploadPlayerPhoto: async (playerId, photoFile) => {
+    try {
+      const formData = new FormData();
+      formData.append('photo', photoFile);
+
+      console.log('Uploading photo for player:', playerId);
+
+      const response = await fetch(`${API_BASE_URL}/players/${playerId}/photo`, {
+        method: 'PATCH',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to upload photo');
+      }
+
+      const data = await response.json();
+      console.log('Photo uploaded:', data);
+      return { success: true, data: data.data };
+    } catch (error) {
+      console.error('Error uploading photo:', error);
       return { success: false, error: error.message };
     }
   },

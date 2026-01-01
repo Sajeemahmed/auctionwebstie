@@ -46,10 +46,21 @@ module.exports = (sequelize) => {
       allowNull: true,
       get() {
         const rawValue = this.getDataValue('sponsors');
-        return rawValue ? JSON.parse(rawValue) : [];
+        if (!rawValue) return [];
+        try {
+          return typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+        } catch (e) {
+          return [];
+        }
       },
       set(value) {
-        this.setDataValue('sponsors', JSON.stringify(value));
+        if (Array.isArray(value)) {
+          this.setDataValue('sponsors', JSON.stringify(value));
+        } else if (typeof value === 'string') {
+          this.setDataValue('sponsors', value);
+        } else {
+          this.setDataValue('sponsors', '[]');
+        }
       }
     },
     initialPurse: {

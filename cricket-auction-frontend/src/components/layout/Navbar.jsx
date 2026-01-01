@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogOut, User, LayoutDashboard, Users, Trophy, Gavel, Eye, Menu, X } from 'lucide-react';
+import { LogOut, User, LayoutDashboard, Users, Trophy, Gavel, Eye, Menu, X, UserPlus } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import useAuctionStore from '../../store/auctionStore';
@@ -20,6 +20,7 @@ const Navbar = () => {
   const adminLinks = [
     { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/admin/players', label: 'Players', icon: Users },
+    { path: '/admin/register-player', label: 'Register Player', icon: UserPlus },
     { path: '/admin/teams', label: 'Teams', icon: Trophy },
     { path: '/admin/auction', label: 'Auction', icon: Gavel },
   ];

@@ -1,15 +1,27 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Star, User, Flame } from 'lucide-react';
+import { Star, User, Flame, Upload, Loader } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
+import { toast } from 'sonner';
+import playerService from '../../services/playerService';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const formatCurrency = (amount) => {
   if (amount >= 100000) {
     return `₹${(amount / 100000).toFixed(2)}L`;
   }
   return `₹${(amount / 1000).toFixed(0)}K`;
+};
+
+const getPhotoUrl = (photoUrl) => {
+  if (!photoUrl) return '/default-player.png';
+  if (photoUrl.startsWith('http')) return photoUrl;
+  // Remove /api from API_BASE_URL if present and add the photoUrl
+  const baseUrl = API_BASE_URL.replace('/api', '');
+  return `${baseUrl}${photoUrl}`;
 };
 
 const getCategoryBadge = (category) => {
@@ -22,9 +34,63 @@ const getCategoryBadge = (category) => {
   return variants[category] || 'default';
 };
 
-const PlayerCard = ({ player, showBidButton, onBringToBid, isHighlighted, size = 'default' }) => {
+const PlayerCard = ({ player, showBidButton, onBringToBid, isHighlighted, size = 'default', onPhotoUpdate }) => {
   const isLarge = size === 'large';
-  
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [localPhotoUrl, setLocalPhotoUrl] = useState(player.photoUrl);
+  const fileInputRef = useRef(null);
+
+  const handlePhotoClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please upload a valid image file (JPEG, PNG, or GIF)');
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+
+    try {
+      const result = await playerService.uploadPlayerPhoto(player.id, file);
+
+      if (result.success) {
+        const newPhotoUrl = result.data.photoUrl;
+        setLocalPhotoUrl(newPhotoUrl);
+        toast.success(`Photo uploaded successfully for ${player.name}!`);
+
+        // Notify parent component if callback provided
+        if (onPhotoUpdate) {
+          onPhotoUpdate(player.id, newPhotoUrl);
+        }
+      } else {
+        toast.error('Failed to upload photo: ' + result.error);
+      }
+    } catch (error) {
+      toast.error('An error occurred while uploading photo');
+    }
+
+    setIsUploadingPhoto(false);
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -82,18 +148,45 @@ const PlayerCard = ({ player, showBidButton, onBringToBid, isHighlighted, size =
         
         <CardContent className={`p-0 ${isLarge ? 'flex' : ''}`}>
           {/* Player Photo */}
-          <div className={`relative overflow-hidden ${
+          <div className={`relative overflow-hidden group ${
             isLarge ? 'w-48 h-48 flex-shrink-0' : 'w-full aspect-square'
           }`}>
+            {/* Hidden File Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/gif"
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
+
             <motion.img
               whileHover={{ scale: 1.1 }}
               transition={{ duration: 0.4 }}
-              src={player.photo}
+              src={getPhotoUrl(localPhotoUrl || player.photoUrl || player.photo)}
               alt={player.name}
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
-            
+
+            {/* Photo Upload Overlay */}
+            <div
+              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center cursor-pointer"
+              onClick={handlePhotoClick}
+            >
+              {isUploadingPhoto ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Loader className="h-8 w-8 text-white animate-spin" />
+                  <span className="text-white text-sm font-medium">Uploading...</span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <Upload className="h-8 w-8 text-white" />
+                  <span className="text-white text-sm font-medium">Upload Photo</span>
+                </div>
+              )}
+            </div>
+
             {/* Category Badge */}
             <div className="absolute bottom-3 left-3">
               <Badge variant={getCategoryBadge(player.category)} className="text-xs font-heading tracking-wider">
