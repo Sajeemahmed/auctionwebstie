@@ -2,15 +2,26 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const teamService = {
+
   // Create a new team
   createTeam: async (teamData) => {
     try {
+      // Make sure sponsors is stringified if it's an array
+      const payload = {
+        ...teamData,
+        sponsors: Array.isArray(teamData.sponsors) 
+          ? JSON.stringify(teamData.sponsors) 
+          : teamData.sponsors
+      };
+
+      console.log('Creating team with payload:', payload);
+
       const response = await fetch(`${API_BASE_URL}/teams`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(teamData)
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -19,6 +30,7 @@ const teamService = {
       }
 
       const data = await response.json();
+      console.log('Team created:', data);
       return { success: true, data: data.data };
     } catch (error) {
       console.error('Error creating team:', error);
@@ -27,28 +39,54 @@ const teamService = {
   },
 
   // Get all teams
- // In teamService.js on frontend
-getAllTeams: async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/teams?active=true`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
+  getAllTeams: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/teams`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to fetch teams');
       }
-    });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to fetch teams');
+      const data = await response.json();
+      return { success: true, data: data.data || [] };
+    } catch (error) {
+      console.error('Error fetching teams:', error);
+      return { success: false, error: error.message, data: [] };
     }
+  },
 
-    const data = await response.json();
-    return { success: true, data: data.data || [] };
-  } catch (error) {
-    console.error('Error fetching teams:', error);
-    return { success: false, error: error.message, data: [] };
-  }
-},
+  // Upload team logo
+  uploadTeamLogo: async (teamId, logoFile) => {
+    try {
+      const formData = new FormData();
+      formData.append('logo', logoFile);
+
+      console.log('Uploading logo for team:', teamId);
+
+      const response = await fetch(`${API_BASE_URL}/teams/${teamId}/logo`, {
+        method: 'PATCH',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to upload logo');
+      }
+
+      const data = await response.json();
+      console.log('Logo uploaded:', data);
+      return { success: true, data: data.data };
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      return { success: false, error: error.message };
+    }
+  },
 
   // Get team by ID
   getTeamById: async (teamId) => {
@@ -63,23 +101,6 @@ getAllTeams: async () => {
       return { success: true, data: data.data };
     } catch (error) {
       console.error('Error fetching team:', error);
-      return { success: false, error: error.message };
-    }
-  },
-
-  // Get teams by season
-  getTeamsBySeason: async (seasonId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/teams/season/${seasonId}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch teams');
-      }
-
-      const data = await response.json();
-      return { success: true, data: data.data };
-    } catch (error) {
-      console.error('Error fetching teams by season:', error);
       return { success: false, error: error.message };
     }
   },
@@ -153,6 +174,29 @@ getAllTeams: async () => {
       return { success: false, error: error.message };
     }
   }
+//   // Upload team logo
+//   uploadTeamLogo: async (teamId, logoFile) => {
+//     try {
+//       const formData = new FormData();
+//       formData.append('logo', logoFile);
+
+//       const response = await fetch(`${API_BASE_URL}/teams/${teamId}/logo`, {
+//         method: 'PATCH',
+//         body: formData
+//       });
+
+//       if (!response.ok) {
+//         const error = await response.json();
+//         throw new Error(error.message || 'Failed to upload logo');
+//       }
+
+//       const data = await response.json();
+//       return { success: true, data: data.data };
+//     } catch (error) {
+//       console.error('Error uploading logo:', error);
+//       return { success: false, error: error.message };
+//     }
+//   },
 };
 
 export default teamService;

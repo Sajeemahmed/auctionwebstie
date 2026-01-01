@@ -109,10 +109,60 @@ const uploadExcel = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: excelFilter
 }).single('file');
-
+// Add this new middleware for CSV + Photos
+const uploadPlayersWithPhotos = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      if (file.fieldname === 'csvFile') {
+        cb(null, excelDir);
+      } else if (file.fieldname === 'photos') {
+        cb(null, playersDir);
+      }
+    },
+    filename: (req, file, cb) => {
+      if (file.fieldname === 'csvFile') {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'players-' + uniqueSuffix + path.extname(file.originalname));
+      } else if (file.fieldname === 'photos') {
+        // Keep original filename for mapping
+        cb(null, file.originalname);
+      }
+    }
+  }),
+  limits: { 
+    fileSize: 10 * 1024 * 1024, // 10MB per file
+    files: 200 // Max 200 files (1 CSV + up to 199 photos)
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.fieldname === 'csvFile') {
+      const allowedTypes = /csv/;
+      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+      if (extname) {
+        return cb(null, true);
+      } else {
+        cb(new Error('Only CSV files are allowed for csvFile field'));
+      }
+    } else if (file.fieldname === 'photos') {
+      const allowedTypes = /jpeg|jpg|png|gif/;
+      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+      const mimetype = allowedTypes.test(file.mimetype);
+      if (extname && mimetype) {
+        return cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed for photos'));
+      }
+    } else {
+      cb(new Error('Invalid field name'));
+    }
+  }
+}).fields([
+  { name: 'csvFile', maxCount: 1 },
+  { name: 'photos', maxCount: 200 }
+]);
 module.exports = {
   uploadPlayerPhoto,
   uploadTeamLogo,      // NEW
   uploadSponsorLogo,   // NEW
-  uploadExcel
+  uploadExcel,
+   uploadPlayersWithPhotos 
 };

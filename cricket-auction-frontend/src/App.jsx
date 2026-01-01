@@ -9,6 +9,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminPlayers from './pages/admin/AdminPlayer';
 import AdminTeams from './pages/admin/AdminTeams';
 import AdminAuction from './pages/admin/AdminAuction';
+import PlayerRegistration from './pages/admin/PlayerRegistration';
 import OwnerBidding from './pages/owner/OwnerBidding';
 import OwnerTeam from './pages/owner/OwnerTeam';
 import LiveView from './pages/LiveView';
@@ -36,7 +37,8 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/live" element={<LiveView />} />
-          
+          <Route path="/register-player" element={<PlayerRegistration />} />
+
           {/* Admin Routes */}
           <Route 
             path="/admin" 
@@ -62,15 +64,23 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/admin/auction" 
+          <Route
+            path="/admin/auction"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminAuction />
               </ProtectedRoute>
-            } 
+            }
           />
-          
+          <Route
+            path="/admin/register-player"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <PlayerRegistration />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Team Owner Routes */}
           <Route 
             path="/owner/bid" 

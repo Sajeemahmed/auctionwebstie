@@ -4,9 +4,9 @@ const router = express.Router();
 
 // Import route modules
 const teamRoutes = require('./teamRoutes');
-// const playerRoutes = require('./playerRoutes');
-// const authRoutes = require('./authRoutes');
-// const auctionRoutes = require('./auctionRoutes');
+const playerRoutes = require('./playerRoutes');
+const auctionRoutes = require('./auctionRoutes');
+const authRoutes = require('./authRoutes');
 
 // Health check
 router.get('/health', (req, res) => {
@@ -19,8 +19,8 @@ router.get('/health', (req, res) => {
 
 // Mount routes
 router.use('/teams', teamRoutes);
-// router.use('/players', playerRoutes);
+router.use('/players', playerRoutes);
+router.use('/auction', auctionRoutes);
 // router.use('/auth', authRoutes);
-// router.use('/auction', auctionRoutes);
 
 module.exports = router;
