@@ -10,7 +10,11 @@ import {
   List,
   Plus,
   Loader,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ChevronDown,
+  X,
+  Sparkles,
+  TrendingUp
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import PlayerCard from '../../components/auction/PlayerCard';
@@ -41,6 +45,8 @@ const AdminPlayers = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   
   // Upload dialog
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -202,150 +208,322 @@ D002,Ishan Kishan,D,WICKET_KEEPER,LH,Top Order,,,1998-07-18,4.2,95000`;
 };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Premium Header */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8"
+          className="relative mb-12"
         >
-          <div>
-            <h1 className="font-heading text-3xl font-bold text-foreground">Player Management</h1>
-            <p className="text-muted-foreground mt-1">{stats.total} players registered</p>
-          </div>
+          {/* Background Glow */}
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 rounded-3xl blur-2xl -z-10" />
+          
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 bg-white/95 backdrop-blur-xl rounded-2xl border border-white/60 p-8 shadow-lg">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <motion.div
+                  animate={{ rotate: [0, 10, -10, 0] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                >
+                  <Sparkles className="h-8 w-8 text-primary" />
+                </motion.div>
+                <h1 className="font-black text-4xl bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                  Player Management
+                </h1>
+              </div>
+              <p className="text-muted-foreground text-lg flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                <span>{stats.total} players registered in auction</span>
+              </p>
+            </div>
 
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={() => setShowUploadDialog(true)} className="gap-2">
-              <Upload className="h-4 w-4" />
-              Upload Excel
-            </Button>
-            <Button variant="outline" onClick={handleDownload} className="gap-2">
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
+            <div className="flex items-center gap-3 flex-wrap justify-start sm:justify-end">
+              <Button variant="outline" onClick={() => setShowUploadDialog(true)} className="gap-2 border-primary/30 hover:border-primary/60">
+                <Upload className="h-4 w-4" />
+                Upload Excel
+              </Button>
+              <Button variant="outline" onClick={handleDownload} className="gap-2 border-primary/30 hover:border-primary/60">
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+            </div>
           </div>
         </motion.div>
 
-        {/* Category Stats */}
+        {/* Advanced Filter Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-6"
+          className="mb-8"
         >
-          <h3 className="text-sm font-semibold text-muted-foreground mb-3">Filter by Category</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {categories.map((cat, index) => (
-              <motion.button
-                key={cat.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 + index * 0.03 }}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`p-4 rounded-xl border transition-all ${
-                  activeCategory === cat.id
-                    ? 'border-primary bg-primary/5 shadow-glow-sm'
-                    : 'border-border bg-card hover:border-primary/50'
-                }`}
-              >
-                <Badge variant={cat.variant || 'default'} className="mb-2">
-                  {cat.count}
-                </Badge>
-                <p className="text-sm font-medium text-foreground">{cat.label}</p>
-              </motion.button>
-            ))}
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl border border-white/60 p-6 shadow-lg">
+            {/* Filter Header */}
+            <div className="flex items-center gap-3 mb-6">
+              <Filter className="h-5 w-5 text-blue-600" />
+              <h2 className="font-bold text-lg text-blue-900">Advanced Filters</h2>
+              {(activeCategory !== 'all' || activeStatus !== 'all') && (
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  onClick={() => {
+                    setActiveCategory('all');
+                    setActiveStatus('all');
+                  }}
+                  className="ml-auto px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                >
+                  Reset Filters
+                </motion.button>
+              )}
+            </div>
+
+            {/* Dropdown Filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              {/* Search Bar */}
+              <div className="lg:col-span-2 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+                <Input
+                  type="text"
+                  placeholder="Search players, form #..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-11 h-12 bg-white border-blue-300 focus:border-blue-500 rounded-xl"
+                />
+              </div>
+
+              {/* Category Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                  className="w-full h-12 px-4 bg-white border border-blue-300 rounded-xl flex items-center justify-between hover:border-blue-500 transition-colors group"
+                >
+                  <span className="text-sm font-medium text-gray-900">
+                    {activeCategory === 'all' ? 'All Categories' : `Category ${activeCategory}`}
+                  </span>
+                  <motion.div
+                    animate={{ rotate: showCategoryDropdown ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChevronDown className="h-4 w-4 text-gray-500 group-hover:text-blue-600\" />
+                  </motion.div>
+                </button>
+
+                {/* Category Dropdown Menu */}
+                <AnimatePresence>
+                  {showCategoryDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                      className="absolute top-14 left-0 right-0 bg-white border border-blue-200 rounded-xl shadow-xl z-50 overflow-hidden backdrop-blur-xl"
+                    >
+                      {categories.map((cat, idx) => (
+                        <motion.button
+                          key={cat.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                          onClick={() => {
+                            setActiveCategory(cat.id);
+                            setShowCategoryDropdown(false);
+                          }}
+                          className={`w-full px-4 py-3 text-left text-sm flex items-center justify-between hover:bg-blue-50 transition-colors border-b border-blue-100 last:border-b-0 ${
+                            activeCategory === cat.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-900'
+                          }`}
+                        >
+                          <span>{cat.label}</span>
+                          <Badge variant={cat.variant || 'default'} className="text-xs">
+                            {cat.count}
+                          </Badge>
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Status Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                  className="w-full h-12 px-4 bg-white border border-blue-300 rounded-xl flex items-center justify-between hover:border-blue-500 transition-colors group"
+                >
+                  <span className="text-sm font-medium text-gray-900">
+                    {activeStatus === 'all' ? 'All Status' : activeStatus}
+                  </span>
+                  <motion.div
+                    animate={{ rotate: showStatusDropdown ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChevronDown className="h-4 w-4 text-gray-500 group-hover:text-blue-600" />
+                  </motion.div>
+                </button>
+
+                {/* Status Dropdown Menu */}
+                <AnimatePresence>
+                  {showStatusDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                      className="absolute top-14 left-0 right-0 bg-white border border-blue-200 rounded-xl shadow-xl z-50 overflow-hidden backdrop-blur-xl"
+                    >
+                      {statusFilters.map((status, idx) => (
+                        <motion.button
+                          key={status.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                          onClick={() => {
+                            setActiveStatus(status.id);
+                            setShowStatusDropdown(false);
+                          }}
+                          className={`w-full px-4 py-3 text-left text-sm flex items-center justify-between hover:bg-blue-50 transition-colors border-b border-blue-100 last:border-b-0 ${
+                            activeStatus === status.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-900'
+                          }`}
+                        >
+                          <span>{status.label}</span>
+                          <Badge variant={status.variant || 'default'} className="text-xs">
+                            {status.count}
+                          </Badge>
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* View Mode Buttons */}
+              <div className="flex items-center gap-2 bg-background/50 rounded-xl p-1 border border-border/50">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                  className="flex-1 rounded-lg"
+                  title="Grid View"
+                >
+                  <Grid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="flex-1 rounded-lg"
+                  title="List View"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Filter Summary */}
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="mt-4 pt-4 border-t border-border/30 flex flex-wrap gap-2"
+            >
+              {(activeCategory !== 'all' || activeStatus !== 'all' || searchQuery !== '') && (
+                <div className="flex flex-wrap gap-2 w-full items-center text-xs text-muted-foreground">
+                  <span>Active filters:</span>
+                  {activeCategory !== 'all' && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="bg-primary/20 text-primary px-3 py-1 rounded-lg font-medium flex items-center gap-2"
+                    >
+                      Category: {activeCategory}
+                      <button onClick={() => setActiveCategory('all')} className="hover:text-primary/60">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </motion.div>
+                  )}
+                  {activeStatus !== 'all' && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="bg-primary/20 text-primary px-3 py-1 rounded-lg font-medium flex items-center gap-2"
+                    >
+                      Status: {activeStatus}
+                      <button onClick={() => setActiveStatus('all')} className="hover:text-primary/60">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </motion.div>
+                  )}
+                  {searchQuery !== '' && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="bg-primary/20 text-primary px-3 py-1 rounded-lg font-medium flex items-center gap-2"
+                    >
+                      Search: {searchQuery}
+                      <button onClick={() => setSearchQuery('')} className="hover:text-primary/60">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
+              )}
+            </motion.div>
           </div>
         </motion.div>
 
-        {/* Status Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="mb-6"
-        >
-          <h3 className="text-sm font-semibold text-muted-foreground mb-3">Filter by Status</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {statusFilters.map((status, index) => (
-              <motion.button
-                key={status.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.15 + index * 0.03 }}
-                onClick={() => setActiveStatus(status.id)}
-                className={`p-4 rounded-xl border transition-all ${
-                  activeStatus === status.id
-                    ? 'border-primary bg-primary/5 shadow-glow-sm'
-                    : 'border-border bg-card hover:border-primary/50'
-                }`}
-              >
-                <Badge variant={status.variant || 'default'} className="mb-2">
-                  {status.count}
-                </Badge>
-                <p className="text-sm font-medium text-foreground">{status.label}</p>
-              </motion.button>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Search & Filter Bar */}
+        {/* Stats Cards */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="flex flex-col sm:flex-row gap-4 mb-6"
+          className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8"
         >
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search by name, form number, or role..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-12"
-            />
+          <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-xl p-4 text-center">
+            <p className="text-xs text-muted-foreground font-semibold mb-1">TOTAL PLAYERS</p>
+            <p className="text-2xl font-black text-foreground">{stats.total}</p>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'outline'}
-              size="icon"
-              onClick={() => setViewMode('grid')}
-            >
-              <Grid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="icon"
-              onClick={() => setViewMode('list')}
-            >
-              <List className="h-4 w-4" />
-            </Button>
+          <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-xl p-4 text-center">
+            <p className="text-xs text-muted-foreground font-semibold mb-1">SOLD</p>
+            <p className="text-2xl font-black text-green-600">{stats.byStatus.SOLD}</p>
+          </div>
+          <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border border-yellow-500/20 rounded-xl p-4 text-center">
+            <p className="text-xs text-muted-foreground font-semibold mb-1">ON BID</p>
+            <p className="text-2xl font-black text-yellow-600">{stats.byStatus.ON_BID}</p>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-xl p-4 text-center">
+            <p className="text-xs text-muted-foreground font-semibold mb-1">UNSOLD</p>
+            <p className="text-2xl font-black text-purple-600">{stats.byStatus.UNSOLD}</p>
           </div>
         </motion.div>
 
-        {/* Results Count */}
+        {/* Results Info */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex items-center justify-between mb-4"
+          className="flex items-center justify-between mb-6 px-2"
         >
-          <p className="text-sm text-muted-foreground">
-            Showing {filteredPlayers.length} of {stats.total} players
+          <p className="text-sm font-semibold text-foreground">
+            <span className="text-primary">{filteredPlayers.length}</span> of <span className="text-primary">{stats.total}</span> players
           </p>
         </motion.div>
 
         {/* Loading State */}
         {loading && (
-          <div className="flex items-center justify-center h-64">
-            <Loader className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center justify-center h-64"
+          >
+            <div className="flex flex-col items-center gap-4">
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, linear: true }}>
+                <Loader className="h-12 w-12 text-primary" />
+              </motion.div>
+              <p className="text-muted-foreground font-medium">Loading players...</p>
+            </div>
+          </motion.div>
         )}
 
-        {/* Players Grid */}
+        {/* Players Grid/List */}
         {!loading && (
           <AnimatePresence mode="wait">
             <motion.div
@@ -353,7 +531,8 @@ D002,Ishan Kishan,D,WICKET_KEEPER,LH,Top Order,,,1998-07-18,4.2,95000`;
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className={`grid gap-4 ${
+              transition={{ duration: 0.3 }}
+              className={`grid gap-6 ${
                 viewMode === 'grid'
                   ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
                   : 'grid-cols-1'
@@ -363,19 +542,29 @@ D002,Ishan Kishan,D,WICKET_KEEPER,LH,Top Order,,,1998-07-18,4.2,95000`;
                 filteredPlayers.map((player, index) => (
                   <motion.div
                     key={player.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(index * 0.02, 0.5) }}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: Math.min(index * 0.03, 0.5), type: 'spring' }}
                   >
                     <PlayerCard player={player} onPhotoUpdate={handlePhotoUpdate} />
                   </motion.div>
                 ))
               ) : (
-                <div className="col-span-full py-16 text-center">
-                  <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-foreground mb-2">No players found</h3>
-                  <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="col-span-full py-20 text-center"
+                >
+                  <motion.div
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Users className="h-20 w-20 text-muted-foreground/40 mx-auto mb-4" />
+                  </motion.div>
+                  <h3 className="text-2xl font-bold text-foreground mb-2">No players found</h3>
+                  <p className="text-muted-foreground text-lg">Try adjusting your filters or search query</p>
+                </motion.div>
               )}
             </motion.div>
           </AnimatePresence>
