@@ -8,14 +8,19 @@ class BidSocket {
   static playerOnBid(playerData) {
     logger.info(`Emitting: Player On Bid - ${playerData.name}`);
     emitToAuction(SOCKET_EVENTS.PLAYER_ON_BID, {
+      id: playerData.id,
       playerId: playerData.id,
       formNumber: playerData.formNumber,
       name: playerData.name,
       category: playerData.category,
       playerType: playerData.playerType,
       photoUrl: playerData.photoUrl,
-      battingStyle: playerData.battingPosition,
-      bowlingStyle: playerData.bowlingType,
+      photo: playerData.photoUrl,
+      role: playerData.playerType,
+      battingHand: playerData.battingHand,
+      battingPosition: playerData.battingPosition,
+      bowlingArm: playerData.bowlingArm,
+      bowlingType: playerData.bowlingType,
       rating: playerData.rating,
       basePrice: playerData.basePrice,
       currentBid: playerData.basePrice,

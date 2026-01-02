@@ -204,7 +204,7 @@ const PlayerCard = ({ player, showBidButton, onBringToBid, isHighlighted, size =
             </h3>
             
             <p className="text-muted-foreground text-sm mb-2">{player.role}</p>
-            
+
             {/* Rating */}
             <div className="flex items-center gap-1 mb-3">
               {[...Array(5)].map((_, i) => (
@@ -214,15 +214,52 @@ const PlayerCard = ({ player, showBidButton, onBringToBid, isHighlighted, size =
                 >
                   <Star
                     className={`h-4 w-4 ${
-                      i < player.rating 
-                        ? 'text-accent fill-accent' 
+                      i < player.rating
+                        ? 'text-accent fill-accent'
                         : 'text-muted/30'
                     }`}
                   />
                 </motion.div>
               ))}
             </div>
-            
+
+            {/* Player Details */}
+            <div className="space-y-1.5 mb-3">
+              {player.playerType && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Type:</span>
+                  <span className="font-medium">
+                    {player.playerType === 'ALL_ROUNDER' ? 'All-Rounder' :
+                     player.playerType === 'WICKET_KEEPER' ? 'Wicket Keeper' :
+                     player.playerType.charAt(0) + player.playerType.slice(1).toLowerCase()}
+                  </span>
+                </div>
+              )}
+
+              {player.battingHand && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Batting:</span>
+                  <span className="font-medium">
+                    {player.battingHand === 'RH' ? 'Right Hand' : 'Left Hand'}
+                  </span>
+                </div>
+              )}
+
+              {player.bowlingArm && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Bowling Arm:</span>
+                  <span className="font-medium">{player.bowlingArm}</span>
+                </div>
+              )}
+
+              {player.bowlingType && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Bowling Type:</span>
+                  <span className="font-medium">{player.bowlingType}</span>
+                </div>
+              )}
+            </div>
+
             {/* Price */}
             <div className="flex items-center justify-between">
               <div>

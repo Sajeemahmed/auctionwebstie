@@ -7,7 +7,6 @@ import 'aos/dist/aos.css';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import BidTimer from '../components/auction/BidTimer';
-import BiddingPanel from '../components/auction/BiddingPanel';
 import useAuctionStore from '../store/auctionStore';
 import { toast } from 'sonner';
 import socketService from '../services/socketService';
@@ -202,9 +201,6 @@ const LiveView = () => {
   const [soldPlayer, setSoldPlayer] = useState(null);
   const [soldTeam, setSoldTeam] = useState(null);
   const [selectedTeam, setSelectedTeam] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [userTeam, setUserTeam] = useState(null);
-  const [isPlacingBid, setIsPlacingBid] = useState(false);
 
   const stats = getPlayerStats();
 
@@ -220,18 +216,6 @@ const LiveView = () => {
     fetchTeams();
   }, [fetchPlayers, fetchTeams]);
 
-  // Load current user from localStorage
-  useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (user) {
-      setCurrentUser(user);
-      // Find user's team if they're a team owner
-      if (user.role === 'TEAM_OWNER' && user.teamId) {
-        const team = teams.find(t => t.id === user.teamId);
-        setUserTeam(team);
-      }
-    }
-  }, [teams]);
 
   // Fetch current auction state on load
   useEffect(() => {
@@ -327,61 +311,6 @@ const LiveView = () => {
       socketService.disconnect();
     };
   }, [teams]);
-
-  // Simulate sold animation (in real app, this would be triggered by socket event)
-  const handleSoldDemo = () => {
-    if (currentPlayer && currentBid?.teamId) {
-      const team = teams.find(t => t.id === currentBid.teamId);
-      setSoldPlayer(currentPlayer);
-      setSoldTeam(team);
-      setShowSoldAnimation(true);
-    }
-  };
-
-  // Handle placing a bid
-  const handlePlaceBid = async (bidAmount) => {
-    if (!currentUser || !userTeam) {
-      toast.error('Please log in as a team owner');
-      return;
-    }
-
-    if (!currentPlayer) {
-      toast.error('No player selected');
-      return;
-    }
-
-    setIsPlacingBid(true);
-
-    try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('http://localhost:5000/api/auction/bid', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          playerId: currentPlayer.id,
-          teamId: userTeam.id,
-          amount: bidAmount
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success(`Bid placed successfully! ₹${(bidAmount / 100000).toFixed(2)}L`);
-        // Update local state would happen via socket/polling in real app
-      } else {
-        toast.error(data.message || 'Failed to place bid');
-      }
-    } catch (error) {
-      console.error('Error placing bid:', error);
-      toast.error('Error placing bid. Please try again.');
-    } finally {
-      setIsPlacingBid(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#141414] relative overflow-hidden">
@@ -725,18 +654,6 @@ const LiveView = () => {
               )}
             </AnimatePresence>
 
-            {/* Bidding Panel - Show only for team owners */}
-            {currentUser && currentUser.role === 'TEAM_OWNER' && currentPlayer && (
-              <div className="mt-6">
-                <BiddingPanel
-                  currentPlayer={currentPlayer}
-                  currentBid={currentBid}
-                  team={userTeam}
-                  onPlaceBid={handlePlaceBid}
-                  isLoading={isPlacingBid}
-                />
-              </div>
-            )}
           </div>
 
           {/* Team Standings with Player Lists */}

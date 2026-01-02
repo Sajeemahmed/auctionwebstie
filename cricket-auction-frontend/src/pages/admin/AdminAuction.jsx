@@ -15,6 +15,16 @@ import { toast } from 'sonner';
 import useAuctionStore from '../../store/auctionStore';
 import socketService from '../../services/socketService';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const getPhotoUrl = (photoUrl) => {
+  if (!photoUrl) return '/default-player.png';
+  if (photoUrl.startsWith('http')) return photoUrl;
+  // Remove /api from API_BASE_URL if present and add the photoUrl
+  const baseUrl = API_BASE_URL.replace('/api', '');
+  return `${baseUrl}${photoUrl}`;
+};
+
 const AdminAuction = () => {
   const {
     players,
@@ -256,35 +266,41 @@ const AdminAuction = () => {
                           className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:border-primary/50 transition-colors"
                         >
                           <img
-                            src={player.photo}
+                            src={getPhotoUrl(player.photo || player.photoUrl)}
                             alt={player.name}
-                            className="w-12 h-12 rounded-lg object-cover"
+                            className="w-12 h-12 rounded-lg object-cover border border-border"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random&size=100`;
+                            }}
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">
-                                {player.formNumber}
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="default" className="text-xs font-bold bg-primary text-primary-foreground">
+                                FORM: {player.formNumber}
                               </Badge>
                               <Badge variant={`cat${player.category}`} className="text-xs">
-                                {player.category}
+                                CAT {player.category}
                               </Badge>
                             </div>
-                            <p className="font-medium truncate">{player.name}</p>
+                            <p className="font-semibold text-sm truncate">{player.name}</p>
                             <p className="text-xs text-muted-foreground">{player.role}</p>
                           </div>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={async () => {
-                              const result = await bringPlayerToBid(player.id);
-                              if (!result.success) {
-                                toast.error(result.error || 'Failed to bring player to bid');
-                              }
-                            }}
-                            disabled={currentPlayer !== null}
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={async () => {
+                                const result = await bringPlayerToBid(player.id);
+                                if (!result.success) {
+                                  toast.error(result.error || 'Failed to bring player to bid');
+                                }
+                              }}
+                              disabled={currentPlayer !== null}
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </motion.div>
                       ))}
                     </AnimatePresence>
