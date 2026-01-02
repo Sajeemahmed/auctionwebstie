@@ -6,6 +6,15 @@ const logger = require('../utils/logger');
 const env = process.env.NODE_ENV || 'development';
 const dbConfig = config[env];
 
+// Debug: Log database configuration
+console.log('📊 Database Configuration:');
+console.log('  Environment:', env);
+console.log('  Host:', dbConfig.host);
+console.log('  Port:', dbConfig.port);
+console.log('  Database:', dbConfig.database);
+console.log('  Username:', dbConfig.username);
+console.log('  Password:', dbConfig.password ? '***' : 'NO PASSWORD');
+
 // Initialize Sequelize
 const sequelize = new Sequelize(
   dbConfig.database,

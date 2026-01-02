@@ -7,7 +7,10 @@ import 'aos/dist/aos.css';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import BidTimer from '../components/auction/BidTimer';
+import BiddingPanel from '../components/auction/BiddingPanel';
 import useAuctionStore from '../store/auctionStore';
+import { toast } from 'sonner';
+import socketService from '../services/socketService';
 
 const formatCurrency = (amount) => {
   if (amount >= 100000) {
@@ -160,22 +163,24 @@ const TeamPlayerCard = ({ player, index }) => (
     initial={{ opacity: 0, scale: 0.8, y: 20 }}
     animate={{ opacity: 1, scale: 1, y: 0 }}
     transition={{ delay: index * 0.1 }}
-    whileHover={{ scale: 1.05, y: -5 }}
-    className="flex flex-col items-center p-3 rounded-lg bg-[#2F2F2F]/50 border border-[#404040] hover:border-[#E50914]/50 transition-all"
+    whileHover={{ scale: 1.08, y: -8 }}
+    className="flex flex-col items-center p-3 rounded-lg bg-[#2F2F2F]/50 border border-[#404040] hover:border-[#E50914] hover:bg-[#E50914]/10 transition-all hover:shadow-lg hover:shadow-[#E50914]/30 cursor-pointer"
   >
-    <img
-      src={player.photo}
-      alt={player.name}
-      className="w-14 h-14 rounded-full object-cover border-2 border-[#E50914]/50 mb-2"
-    />
+    <motion.div whileHover={{ rotate: [0, -10, 10, -10, 0] }} transition={{ duration: 0.5 }}>
+      <img
+        src={player.photo}
+        alt={player.name}
+        className="w-14 h-14 rounded-full object-cover border-2 border-[#E50914]/50 mb-2 shadow-md"
+      />
+    </motion.div>
     <p className="text-xs font-medium text-white text-center truncate w-full">{player.name.split(' ')[0]}</p>
     <Badge className={`text-[10px] mt-1 ${
-      player.role.includes('Bat') ? 'bg-blue-600' : 
-      player.role.includes('Bowl') ? 'bg-green-600' : 
+      player.role.includes('Bat') ? 'bg-blue-600' :
+      player.role.includes('Bowl') ? 'bg-green-600' :
       player.role.includes('All') ? 'bg-purple-600' : 'bg-orange-600'
     } text-white border-0`}>
-      {player.role.includes('Bat') ? '🏏 Batsman' : 
-       player.role.includes('Bowl') ? '⚾ Bowler' : 
+      {player.role.includes('Bat') ? '🏏 Batsman' :
+       player.role.includes('Bowl') ? '⚾ Bowler' :
        player.role.includes('All') ? '⭐ All-Rounder' : '🧤 Keeper'}
     </Badge>
   </motion.div>
@@ -189,12 +194,17 @@ const LiveView = () => {
     teams,
     auctionStatus,
     getPlayerStats,
+    fetchPlayers,
+    fetchTeams,
   } = useAuctionStore();
 
   const [showSoldAnimation, setShowSoldAnimation] = useState(false);
   const [soldPlayer, setSoldPlayer] = useState(null);
   const [soldTeam, setSoldTeam] = useState(null);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userTeam, setUserTeam] = useState(null);
+  const [isPlacingBid, setIsPlacingBid] = useState(false);
 
   const stats = getPlayerStats();
 
@@ -204,7 +214,119 @@ const LiveView = () => {
       once: false,
       easing: 'ease-out-cubic'
     });
+
+    // Fetch players and teams from backend on mount
+    fetchPlayers();
+    fetchTeams();
+  }, [fetchPlayers, fetchTeams]);
+
+  // Load current user from localStorage
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user) {
+      setCurrentUser(user);
+      // Find user's team if they're a team owner
+      if (user.role === 'TEAM_OWNER' && user.teamId) {
+        const team = teams.find(t => t.id === user.teamId);
+        setUserTeam(team);
+      }
+    }
+  }, [teams]);
+
+  // Fetch current auction state on load
+  useEffect(() => {
+    const fetchAuctionState = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/auction/state?seasonId=1');
+        if (response.ok) {
+          const data = await response.json();
+          const auctionState = data.data;
+
+          // If there's a current player on bid, set it
+          if (auctionState.currentPlayer) {
+            useAuctionStore.setState({
+              currentPlayer: {
+                id: auctionState.currentPlayer.id,
+                formNumber: auctionState.currentPlayer.formNumber,
+                name: auctionState.currentPlayer.name,
+                category: auctionState.currentPlayer.category,
+                role: auctionState.currentPlayer.playerType || 'All-Rounder',
+                basePrice: parseFloat(auctionState.currentPlayer.basePrice) || 0,
+                rating: parseFloat(auctionState.currentPlayer.rating) || 3,
+                photo: auctionState.currentPlayer.photoUrl || `https://ui-avatars.com/api/?name=${auctionState.currentPlayer.name}&background=random&size=200`
+              },
+              currentBid: {
+                amount: auctionState.currentPlayer.currentBid || auctionState.currentPlayer.basePrice,
+                teamId: null,
+                teamName: 'Base Price'
+              },
+              bidHistory: []
+            });
+            console.log('Loaded current player from auction state:', auctionState.currentPlayer.name);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching auction state:', error);
+      }
+    };
+
+    fetchAuctionState();
   }, []);
+
+  // Setup socket.io connection for real-time auction updates
+  useEffect(() => {
+    // Connect to socket as VIEWER
+    socketService.connect('VIEWER');
+
+    // Listen for player brought to bid
+    socketService.on(socketService.constructor.EVENTS.PLAYER_ON_BID, (player) => {
+      console.log('Player brought to bid:', player);
+      useAuctionStore.setState({
+        currentPlayer: player,
+        currentBid: { amount: player.basePrice, teamId: null, teamName: 'Base Price' },
+        bidHistory: []
+      });
+      toast.info(`${player.name} is now up for bidding!`);
+    });
+
+    // Listen for bid updates
+    socketService.on(socketService.constructor.EVENTS.BID_UPDATE, (data) => {
+      console.log('Bid update:', data);
+      useAuctionStore.setState({
+        currentBid: {
+          amount: data.currentBid,
+          teamId: data.leadingTeam.id,
+          teamName: data.leadingTeam.name
+        },
+        bidHistory: data.bidHistory || []
+      });
+    });
+
+    // Listen for player sold
+    socketService.on(socketService.constructor.EVENTS.PLAYER_SOLD, (data) => {
+      console.log('Player sold:', data);
+      const team = teams.find(t => t.id === data.teamId);
+      setSoldPlayer(data);
+      setSoldTeam(team);
+      setShowSoldAnimation(true);
+    });
+
+    // Listen for player unsold
+    socketService.on(socketService.constructor.EVENTS.PLAYER_UNSOLD, () => {
+      console.log('Player unsold');
+      useAuctionStore.setState({
+        currentPlayer: null,
+        currentBid: null,
+        bidHistory: []
+      });
+      toast.info('Player went unsold');
+    });
+
+    // Cleanup on unmount
+    return () => {
+      socketService.disconnect();
+    };
+  }, [teams]);
 
   // Simulate sold animation (in real app, this would be triggered by socket event)
   const handleSoldDemo = () => {
@@ -213,6 +335,51 @@ const LiveView = () => {
       setSoldPlayer(currentPlayer);
       setSoldTeam(team);
       setShowSoldAnimation(true);
+    }
+  };
+
+  // Handle placing a bid
+  const handlePlaceBid = async (bidAmount) => {
+    if (!currentUser || !userTeam) {
+      toast.error('Please log in as a team owner');
+      return;
+    }
+
+    if (!currentPlayer) {
+      toast.error('No player selected');
+      return;
+    }
+
+    setIsPlacingBid(true);
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('http://localhost:5000/api/auction/bid', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          playerId: currentPlayer.id,
+          teamId: userTeam.id,
+          amount: bidAmount
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(`Bid placed successfully! ₹${(bidAmount / 100000).toFixed(2)}L`);
+        // Update local state would happen via socket/polling in real app
+      } else {
+        toast.error(data.message || 'Failed to place bid');
+      }
+    } catch (error) {
+      console.error('Error placing bid:', error);
+      toast.error('Error placing bid. Please try again.');
+    } finally {
+      setIsPlacingBid(false);
     }
   };
 
@@ -339,12 +506,15 @@ const LiveView = () => {
                         <motion.div
                           initial={{ scale: 0.8, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
-                          className="relative"
+                          whileHover={{ scale: 1.05 }}
+                          transition={{ duration: 0.3 }}
+                          className="relative cursor-pointer"
                         >
-                          <img
+                          <motion.img
                             src={currentPlayer.photo}
                             alt={currentPlayer.name}
                             className="w-64 h-64 rounded-2xl object-cover shadow-2xl border-4 border-[#E50914]/50"
+                            whileHover={{ borderColor: 'rgba(229, 9, 20, 1)' }}
                           />
                           
                           {/* Category Badge */}
@@ -495,11 +665,12 @@ const LiveView = () => {
                               key={bid.timestamp}
                               initial={{ scale: 0, opacity: 0 }}
                               animate={{ scale: 1, opacity: 1 }}
+                              whileHover={{ scale: 1.1, y: -2 }}
                               transition={{ delay: index * 0.05 }}
-                              className={`px-3 py-1.5 rounded-lg whitespace-nowrap ${
+                              className={`px-3 py-1.5 rounded-lg whitespace-nowrap cursor-pointer ${
                                 index === 0
-                                  ? 'bg-[#E50914] text-white'
-                                  : 'bg-[#2F2F2F] text-gray-400'
+                                  ? 'bg-[#E50914] text-white shadow-lg shadow-[#E50914]/30'
+                                  : 'bg-[#2F2F2F] text-gray-400 hover:bg-[#404040]'
                               }`}
                             >
                               <span className="text-xs">{bid.teamName}</span>
@@ -553,6 +724,19 @@ const LiveView = () => {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Bidding Panel - Show only for team owners */}
+            {currentUser && currentUser.role === 'TEAM_OWNER' && currentPlayer && (
+              <div className="mt-6">
+                <BiddingPanel
+                  currentPlayer={currentPlayer}
+                  currentBid={currentBid}
+                  team={userTeam}
+                  onPlaceBid={handlePlaceBid}
+                  isLoading={isPlacingBid}
+                />
+              </div>
+            )}
           </div>
 
           {/* Team Standings with Player Lists */}
@@ -578,22 +762,25 @@ const LiveView = () => {
                     >
                       {/* Team Header */}
                       <motion.div
-                        whileHover={{ scale: 1.02 }}
+                        whileHover={{ scale: 1.03, x: 3 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => setSelectedTeam(isExpanded ? null : team.id)}
                         className={`p-3 rounded-lg border cursor-pointer transition-all ${
                           isLeading
-                            ? 'border-green-500 bg-green-500/10'
-                            : 'border-[#333] bg-[#2F2F2F]/30 hover:border-[#E50914]/50'
+                            ? 'border-green-500 bg-green-500/10 shadow-lg shadow-green-500/20'
+                            : 'border-[#333] bg-[#2F2F2F]/30 hover:border-[#E50914]/50 hover:bg-[#E50914]/5 hover:shadow-md hover:shadow-[#E50914]/20'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <div
-                              className="w-8 h-8 rounded flex items-center justify-center text-white text-xs font-bold"
+                            <motion.div
+                              whileHover={{ rotate: 360, scale: 1.1 }}
+                              transition={{ duration: 0.6 }}
+                              className="w-8 h-8 rounded flex items-center justify-center text-white text-xs font-bold shadow-md"
                               style={{ backgroundColor: team.color }}
                             >
                               {team.name.charAt(0)}
-                            </div>
+                            </motion.div>
                             <div>
                               <span className="font-medium text-white text-sm">{team.name}</span>
                               {isLeading && (

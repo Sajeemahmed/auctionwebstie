@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogIn, User, Lock, Eye, EyeOff, Trophy, Users, Gavel, Loader2, UserPlus } from 'lucide-react';
+import { LogIn, User, Lock, Eye, EyeOff, Trophy, Users, Gavel, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -48,17 +48,17 @@ const LoginPage = () => {
     setIsLoading(true);
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    const result = login(username, password);
+    const result = await login(username, password);
 
     if (result.success) {
       toast.success(`Welcome back, ${result.user.username}!`);
-      if (result.user.role === 'admin') {
+      if (result.user.role === 'ADMIN') {
         navigate('/admin');
       } else {
         navigate('/owner/bid');
       }
     } else {
-      toast.error('Invalid credentials. Please try again.');
+      toast.error(result.error || 'Invalid credentials. Please try again.');
     }
     setIsLoading(false);
   };
@@ -274,6 +274,18 @@ const LoginPage = () => {
                     </div>
 
                     <div className="mt-4 space-y-3">
+                      <motion.div className="text-center pt-3 border-t border-[#333]">
+                        <p className="text-sm text-gray-400 mb-3">
+                          Don't have an account?{' '}
+                          <button
+                            onClick={() => navigate('/signup')}
+                            className="text-[#E50914] hover:text-[#F40612] font-medium transition-colors"
+                          >
+                            Sign up
+                          </button>
+                        </p>
+                      </motion.div>
+
                       <motion.div className="text-center">
                         <a
                           href="/live"
@@ -285,19 +297,6 @@ const LoginPage = () => {
                             className="w-2 h-2 rounded-full bg-[#E50914]"
                           />
                           Watch Live Auction
-                        </a>
-                      </motion.div>
-
-                      <motion.div
-                        className="text-center pt-3 border-t border-[#333]"
-                        whileHover={{ scale: 1.02 }}
-                      >
-                        <a
-                          href="/register-player"
-                          className="text-sm text-gray-400 hover:text-primary flex items-center justify-center gap-2 transition-colors"
-                        >
-                          <UserPlus className="h-4 w-4" />
-                          Register as a Player
                         </a>
                       </motion.div>
                     </div>

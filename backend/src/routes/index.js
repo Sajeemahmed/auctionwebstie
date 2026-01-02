@@ -21,6 +21,6 @@ router.get('/health', (req, res) => {
 router.use('/teams', teamRoutes);
 router.use('/players', playerRoutes);
 router.use('/auction', auctionRoutes);
-// router.use('/auth', authRoutes);
+router.use('/auth', authRoutes);
 
 module.exports = router;

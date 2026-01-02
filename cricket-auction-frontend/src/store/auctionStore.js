@@ -60,7 +60,13 @@ const useAuctionStore = create(
       // State
       players: generateMockPlayers(),
       teams: initialTeams,
-      currentUser: null,
+      currentUser: (() => {
+        try {
+          return JSON.parse(localStorage.getItem('user')) || null;
+        } catch {
+          return null;
+        }
+      })(),
       currentCategory: 'A',
       currentPlayer: null,
       currentBid: null,
@@ -70,38 +76,120 @@ const useAuctionStore = create(
       auctionStatus: 'idle', // idle, running, paused, finished
       
       // Auth Actions
-      login: (username, password, role) => {
-        const users = {
-          admin: { username: 'admin', password: 'admin123', role: 'admin' },
-          owner1: { username: 'warriors', password: 'team123', role: 'owner', teamId: 'team-1' },
-          owner2: { username: 'knights', password: 'team123', role: 'owner', teamId: 'team-2' },
-          owner3: { username: 'titans', password: 'team123', role: 'owner', teamId: 'team-3' },
-          owner4: { username: 'eagles', password: 'team123', role: 'owner', teamId: 'team-4' },
-          owner5: { username: 'dragons', password: 'team123', role: 'owner', teamId: 'team-5' },
-          owner6: { username: 'lions', password: 'team123', role: 'owner', teamId: 'team-6' },
-        };
-        
-        const user = Object.values(users).find(u => u.username === username && u.password === password);
-        if (user) {
-          set({ currentUser: user });
-          return { success: true, user };
+      login: async (username, password) => {
+        try {
+          const response = await fetch('http://localhost:5000/api/auth/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, password })
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            const user = data.data.user;
+            localStorage.setItem('authToken', data.data.token);
+            localStorage.setItem('user', JSON.stringify(user));
+            set({ currentUser: user });
+            return { success: true, user };
+          } else {
+            return { success: false, error: data.message || 'Invalid credentials' };
+          }
+        } catch (error) {
+          console.error('Login error:', error);
+          return { success: false, error: 'Network error. Please try again.' };
         }
-        return { success: false, error: 'Invalid credentials' };
+      },
+
+      register: async (username, email, password, role, teamId) => {
+        try {
+          const response = await fetch('http://localhost:5000/api/auth/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, email, password, role, teamId, seasonId: 1 })
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            const user = data.data.user;
+            localStorage.setItem('authToken', data.data.token);
+            localStorage.setItem('user', JSON.stringify(user));
+            set({ currentUser: user });
+            return { success: true, user };
+          } else {
+            return { success: false, error: data.message || 'Registration failed' };
+          }
+        } catch (error) {
+          console.error('Registration error:', error);
+          return { success: false, error: 'Network error. Please try again.' };
+        }
+      },
+
+      getAllTeams: async () => {
+        try {
+          const response = await fetch('http://localhost:5000/api/teams');
+          if (response.ok) {
+            const data = await response.json();
+            return data.data || [];
+          }
+        } catch (error) {
+          console.error('Error fetching teams:', error);
+        }
+        return [];
       },
       
-      logout: () => set({ currentUser: null }),
+      logout: () => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        set({ currentUser: null });
+      },
       
       // Player Actions
-      bringPlayerToBid: (playerId) => {
+      bringPlayerToBid: async (playerId) => {
         const player = get().players.find(p => p.id === playerId);
-        if (player && player.status === 'available') {
-          set({
-            currentPlayer: player,
-            currentBid: { amount: player.basePrice, teamId: null, teamName: 'Base Price' },
-            bidHistory: [],
-            timer: 30,
-            isTimerRunning: true
+        if (!player || player.status !== 'available') {
+          return { success: false, error: 'Player not available' };
+        }
+
+        try {
+          const token = localStorage.getItem('authToken');
+          const response = await fetch('http://localhost:5000/api/auction/player-on-bid', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({
+              seasonId: 1, // Using season 1
+              playerId: playerId
+            })
           });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            // Update local state immediately for admin UI
+            set({
+              currentPlayer: player,
+              currentBid: { amount: player.basePrice, teamId: null, teamName: 'Base Price' },
+              bidHistory: [],
+              timer: 30,
+              isTimerRunning: true
+            });
+            console.log('Player brought to bid:', player.name);
+            return { success: true, player };
+          } else {
+            console.error('Failed to bring player to bid:', data.message);
+            return { success: false, error: data.message || 'Failed to bring player to bid' };
+          }
+        } catch (error) {
+          console.error('Error bringing player to bid:', error);
+          return { success: false, error: 'Network error. Please try again.' };
         }
       },
       
@@ -239,6 +327,84 @@ const useAuctionStore = create(
       getUnsoldPlayers: () => get().players.filter(p => p.status === 'unsold'),
       getSoldPlayers: () => get().players.filter(p => p.status === 'sold'),
       getTeamById: (teamId) => get().teams.find(t => t.id === teamId),
+      
+      // Fetch players and teams from backend
+      fetchPlayers: async () => {
+        try {
+          const token = localStorage.getItem('authToken');
+          const response = await fetch('http://localhost:5000/api/players', {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const players = (data.data || []).map(p => {
+              // Map backend status to frontend status
+              let status = 'available';
+              if (p.status === 'SOLD') {
+                status = 'sold';
+              } else if (p.status === 'UNSOLD' || p.status === 'WITHDRAWN') {
+                status = 'available';
+              } else if (p.status === 'ON_BID') {
+                status = 'available'; // Currently on bid players are still available
+              }
+
+              return {
+                id: p.id,
+                formNumber: p.formNumber,
+                name: p.name,
+                category: p.category,
+                role: p.playerType || p.role || 'All-Rounder', // Use playerType from backend
+                basePrice: parseFloat(p.basePrice) || 0,
+                rating: parseFloat(p.rating) || 3,
+                status: status,
+                soldTo: p.teamId || p.soldTo || null, // teamId is used in backend
+                soldPrice: p.soldPrice ? parseFloat(p.soldPrice) : null,
+                photo: p.photoUrl || p.photo || `https://ui-avatars.com/api/?name=${p.name}&background=random&size=200`
+              };
+            });
+            set({ players });
+            console.log('Fetched players:', players.length);
+            return players;
+          } else {
+            console.error('Failed to fetch players:', response.status, response.statusText);
+          }
+        } catch (error) {
+          console.error('Error fetching players:', error);
+        }
+        return get().players;
+      },
+
+      fetchTeams: async () => {
+        try {
+          const token = localStorage.getItem('authToken');
+          const response = await fetch('http://localhost:5000/api/teams', {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const teams = (data.data || []).map(t => ({
+              id: t.id,
+              name: t.name,
+              shortName: t.shortName,
+              purse: t.purse || t.initial_purse || 10000000, // Backend uses initial_purse
+              maxPlayers: t.maxPlayers || 15,
+              players: t.players || [],
+              color: t.color || `#${Math.floor(Math.random()*16777215).toString(16)}`
+            }));
+            set({ teams });
+            console.log('Fetched teams:', teams.length);
+            return teams;
+          } else {
+            console.error('Failed to fetch teams:', response.status, response.statusText);
+          }
+        } catch (error) {
+          console.error('Error fetching teams:', error);
+        }
+        return get().teams;
+      },
+
       getPlayerStats: () => {
         const players = get().players;
         return {

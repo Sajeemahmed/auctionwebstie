@@ -24,7 +24,9 @@ const connectDB = async () => {
     // Sync models (use {alter: true} only in development)
     // In production, use migrations instead
     if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true }); // Set to true to auto-create/update columns
+      // Drop and recreate to fix any schema issues
+      const forceSync = process.env.FORCE_DB_SYNC === 'true';
+      await sequelize.sync({ force: forceSync, alter: !forceSync });
       logger.info('✅ Database models synchronized');
       
       // Seed default data

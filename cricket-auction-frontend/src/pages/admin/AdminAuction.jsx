@@ -13,6 +13,7 @@ import { ScrollArea } from '../../components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import { toast } from 'sonner';
 import useAuctionStore from '../../store/auctionStore';
+import socketService from '../../services/socketService';
 
 const AdminAuction = () => {
   const {
@@ -38,11 +39,56 @@ const AdminAuction = () => {
     getAvailablePlayers,
     getUnsoldPlayers,
     getPlayerStats,
+    fetchPlayers,
+    fetchTeams,
   } = useAuctionStore();
 
   const [showSoldDialog, setShowSoldDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
   const stats = getPlayerStats();
+
+  // Fetch players and teams from backend on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await fetchPlayers();
+        await fetchTeams();
+      } catch (error) {
+        console.error('Error loading auction data:', error);
+        toast.error('Failed to load auction data');
+      }
+    };
+    loadData();
+  }, [fetchPlayers, fetchTeams]);
+
+  // Setup socket.io connection for real-time updates
+  useEffect(() => {
+    // Connect to socket as ADMIN
+    socketService.connect('ADMIN');
+
+    // Listen for timer end events - auto-sell player
+    socketService.on(socketService.constructor.EVENTS.TIMER_ENDED, async () => {
+      console.log('Timer ended, auto-selling player...');
+      if (currentPlayer && currentBid?.teamId) {
+        // Automatically mark player as sold
+        setTimeout(() => handleSold(), 500);
+      } else if (currentPlayer) {
+        // No bids - mark as unsold
+        setTimeout(() => handleUnsold(), 500);
+      }
+    });
+
+    // Listen for bid placed events
+    socketService.on(socketService.constructor.EVENTS.BID_PLACED, (data) => {
+      console.log('Bid placed:', data);
+      toast.success(`₹${(data.bidAmount / 100000).toFixed(2)}L bid by ${data.teamName}`);
+    });
+
+    // Cleanup on unmount
+    return () => {
+      socketService.disconnect();
+    };
+  }, [currentPlayer, currentBid]);
 
   const categories = ['A', 'B', 'C', 'D', 'Unsold'];
   const availablePlayers = currentCategory === 'Unsold' 
@@ -229,7 +275,12 @@ const AdminAuction = () => {
                           <Button
                             variant="default"
                             size="sm"
-                            onClick={() => bringPlayerToBid(player.id)}
+                            onClick={async () => {
+                              const result = await bringPlayerToBid(player.id);
+                              if (!result.success) {
+                                toast.error(result.error || 'Failed to bring player to bid');
+                              }
+                            }}
                             disabled={currentPlayer !== null}
                           >
                             <ChevronRight className="h-4 w-4" />
