@@ -159,7 +159,7 @@ class TimerService {
       }
 
       // Check if there are any bids
-      const winningBid = await Bid.findOne({
+      let winningBid = await Bid.findOne({
         where: {
           seasonId,
           playerId,
@@ -168,8 +168,13 @@ class TimerService {
         include: [{ model: Team }]
       });
 
-      if (winningBid && winningBid.Team) {
-        // Player has bids - SELL to highest bidder
+      // If Team relation not populated, fetch it
+      if (winningBid && !winningBid.Team) {
+        winningBid.Team = await Team.findByPk(winningBid.teamId);
+      }
+
+      if (winningBid) {
+        // Player has bids - SELL to highest bidder (even if Team relation was missing initially)
         await this.autoSellPlayer(seasonId, player, winningBid);
       } else {
         // No bids - Mark as UNSOLD
@@ -191,8 +196,13 @@ class TimerService {
    * Automatically sell player to highest bidder
    */
   async autoSellPlayer(seasonId, player, winningBid) {
-    const team = winningBid.Team;
+    const team = winningBid.Team || (await Team.findByPk(winningBid.teamId));
     const finalAmount = winningBid.bidAmount;
+    if (!team) {
+      logger.error(`Auto-sell failed: team ${winningBid.teamId} not found for winning bid ${winningBid.id}`);
+      await this.markPlayerUnsold(seasonId, player);
+      return;
+    }
 
     logger.info(`Auto-selling ${player.name} to ${team.name} for ₹${finalAmount}`);
 
@@ -205,12 +215,13 @@ class TimerService {
     });
 
     // Deduct from team purse
-    const newPurse = team.purse - finalAmount;
+    const priorPurse = team.remainingPurse ?? team.initialPurse ?? team.initial_purse ?? 0;
+    const newPurse = priorPurse - finalAmount;
     await team.update({
-      purse: newPurse
+      remainingPurse: newPurse
     });
 
-    logger.info(`Team ${team.name} purse updated: ₹${team.purse} -> ₹${newPurse}`);
+    logger.info(`Team ${team.name} purse updated: ₹${team.remainingPurse} -> ₹${newPurse}`);
 
     // Create purchase record
     const totalBids = await Bid.count({ where: { seasonId, playerId: player.id } });
@@ -262,7 +273,7 @@ class TimerService {
     BidSocket.teamPurseUpdated({
       teamId: team.id,
       teamName: team.name,
-      remainingPurse: newPurse,
+      remainingremainingPurse: newPurse,
       spentAmount: finalAmount,
       canBid: newPurse > 0
     });

@@ -100,12 +100,19 @@ const OwnerBidding = () => {
     setIsPlacingBid(false);
   };
 
-  const handleCustomBid = () => {
+  const handleCustomBid = async () => {
     if (!currentPlayer || !myTeam) return;
 
     const parsed = parseInt(customBid, 10);
-    if (isNaN(parsed) || parsed <= (currentBid?.amount || currentPlayer.basePrice)) {
+    const baseline = currentBid?.amount || currentPlayer.basePrice;
+    if (isNaN(parsed) || parsed <= baseline) {
       toast.error('Enter an amount higher than the current bid.');
+      return;
+    }
+
+    const minIncrement = 5000;
+    if (parsed - baseline < minIncrement) {
+      toast.error(`Minimum increment is ₹${minIncrement}`);
       return;
     }
 
@@ -114,7 +121,7 @@ const OwnerBidding = () => {
       return;
     }
 
-    const result = placeBid(myTeam.id, parsed);
+    const result = await placeBid(myTeam.id, parsed);
     if (result.success) {
       confetti({
         particleCount: 30,
