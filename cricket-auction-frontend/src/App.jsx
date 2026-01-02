@@ -5,6 +5,7 @@ import useAuctionStore from './store/auctionStore';
 
 // Pages
 import LoginPage from './pages/LoginPage';
+import SignUpPage from './pages/SignUpPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminPlayers from './pages/admin/AdminPlayer';
 import AdminTeams from './pages/admin/AdminTeams';
@@ -19,7 +20,17 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   const { currentUser } = useAuctionStore();
   
   if (!currentUser) {
-    return <Navigate to="/login" replace />;
+    // Check localStorage as fallback
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      return <Navigate to="/login" replace />;
+    }
+    
+    if (allowedRoles && !allowedRoles.includes(user.role)) {
+      return <Navigate to="/login" replace />;
+    }
+    
+    return children;
   }
   
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
@@ -36,6 +47,7 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
           <Route path="/live" element={<LiveView />} />
           <Route path="/register-player" element={<PlayerRegistration />} />
 
@@ -43,7 +55,7 @@ function App() {
           <Route 
             path="/admin" 
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminDashboard />
               </ProtectedRoute>
             } 
@@ -51,7 +63,7 @@ function App() {
           <Route 
             path="/admin/players" 
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminPlayers />
               </ProtectedRoute>
             } 
@@ -59,7 +71,7 @@ function App() {
           <Route 
             path="/admin/teams" 
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminTeams />
               </ProtectedRoute>
             } 
@@ -67,7 +79,7 @@ function App() {
           <Route
             path="/admin/auction"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminAuction />
               </ProtectedRoute>
             }
@@ -75,7 +87,7 @@ function App() {
           <Route
             path="/admin/register-player"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['ADMIN']}>
                 <PlayerRegistration />
               </ProtectedRoute>
             }
@@ -85,7 +97,7 @@ function App() {
           <Route 
             path="/owner/bid" 
             element={
-              <ProtectedRoute allowedRoles={['owner']}>
+              <ProtectedRoute allowedRoles={['TEAM_OWNER']}>
                 <OwnerBidding />
               </ProtectedRoute>
             } 
@@ -93,7 +105,7 @@ function App() {
           <Route 
             path="/owner/team" 
             element={
-              <ProtectedRoute allowedRoles={['owner']}>
+              <ProtectedRoute allowedRoles={['TEAM_OWNER']}>
                 <OwnerTeam />
               </ProtectedRoute>
             } 

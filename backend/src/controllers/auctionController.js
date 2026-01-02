@@ -173,13 +173,26 @@ const bringPlayerToBid = async (req, res, next) => {
       return response.badRequest(res, 'Player is already sold');
     }
 
-    // Update auction state
-    const auctionState = await AuctionState.findOne({ where: { seasonId } });
-    await auctionState.update({
-      currentPlayerId: playerId,
-      currentCategory: player.category,
-      timerSeconds: DEFAULT_TIMER
-    });
+    // Update auction state (create if doesn't exist)
+    let auctionState = await AuctionState.findOne({ where: { seasonId } });
+
+    if (!auctionState) {
+      // Create auction state if it doesn't exist
+      auctionState = await AuctionState.create({
+        seasonId,
+        status: AUCTION_STATUS.ACTIVE,
+        currentPlayerId: playerId,
+        currentCategory: player.category,
+        timerSeconds: DEFAULT_TIMER,
+        minBidIncrement: MIN_BID_INCREMENT
+      });
+    } else {
+      await auctionState.update({
+        currentPlayerId: playerId,
+        currentCategory: player.category,
+        timerSeconds: DEFAULT_TIMER
+      });
+    }
 
     // Update player status
     await player.update({
@@ -265,7 +278,7 @@ const placeBid = async (req, res, next) => {
     }
 
     // Check team purse
-    if (bidAmount > team.purse) {
+    if (bidAmount > team.initial_purse) {
       BidSocket.bidInvalid({
         teamId,
         reason: 'Insufficient purse balance',
@@ -400,7 +413,7 @@ const markPlayerSold = async (req, res, next) => {
 
     // Update team purse
     await team.update({
-      purse: team.purse - finalAmount
+      purse: team.initial_purse - finalAmount
     });
 
     // Create purchase record

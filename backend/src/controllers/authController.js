@@ -49,11 +49,7 @@ const register = async (req, res, next) => {
       }
 
       // Check if team already has an owner
-      const existingOwner = await User.findOne({
-        where: { teamId, role: 'TEAM_OWNER' }
-      });
-
-      if (existingOwner) {
+      if (team.ownerId) {
         return response.conflict(res, 'This team already has an owner');
       }
     }
@@ -64,17 +60,29 @@ const register = async (req, res, next) => {
       email,
       passwordHash: password, // Will be hashed by model hook
       role,
-      teamId: role === 'TEAM_OWNER' ? teamId : null,
       seasonId: 1 // Default season
     });
+
+    // If team owner, set the user as the team owner
+    let userTeam = null;
+    if (role === 'TEAM_OWNER' && teamId) {
+      await Team.update(
+        { ownerId: user.id },
+        { where: { id: teamId } }
+      );
+      // Fetch the team details
+      userTeam = await Team.findByPk(teamId, {
+       attributes: ['id', 'name', 'shortName', 'initialPurse', 'remainingPurse']
+
+      });
+    }
 
     // Generate token
     const token = jwt.sign(
       {
         id: user.id,
         username: user.username,
-        role: user.role,
-        teamId: user.teamId
+        role: user.role
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -89,7 +97,8 @@ const register = async (req, res, next) => {
         username: user.username,
         email: user.email,
         role: user.role,
-        teamId: user.teamId
+        teamId: userTeam ? userTeam.id : null,
+        team: userTeam
       }
     }, 'User registered successfully', 201);
 
@@ -114,12 +123,7 @@ const login = async (req, res, next) => {
 
     // Find user
     const user = await User.findOne({
-      where: { username },
-      include: [{
-        model: Team,
-        as: 'team',
-        attributes: ['id', 'name', 'shortName', 'purse']
-      }]
+      where: { username }
     });
 
     if (!user) {
@@ -146,14 +150,23 @@ const login = async (req, res, next) => {
       {
         id: user.id,
         username: user.username,
-        role: user.role,
-        teamId: user.teamId
+        role: user.role
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
     logger.info(`User logged in: ${user.username} (${user.role})`);
+
+    // Get team info for team owners
+    let userTeam = null;
+    if (user.role === 'TEAM_OWNER') {
+      userTeam = await Team.findOne({
+        where: { ownerId: user.id },
+        attributes: ['id', 'name', 'shortName', 'initialPurse', 'remainingPurse']
+
+      });
+    }
 
     return response.success(res, {
       token,
@@ -162,8 +175,8 @@ const login = async (req, res, next) => {
         username: user.username,
         email: user.email,
         role: user.role,
-        teamId: user.teamId,
-        team: user.team
+        teamId: userTeam ? userTeam.id : null,
+        team: userTeam
       }
     }, 'Login successful');
 
@@ -182,11 +195,6 @@ const getProfile = async (req, res, next) => {
     const userId = req.user.id; // From auth middleware
 
     const user = await User.findByPk(userId, {
-      include: [{
-        model: Team,
-        as: 'team',
-        attributes: ['id', 'name', 'shortName', 'purse']
-      }],
       attributes: { exclude: ['passwordHash'] }
     });
 
@@ -209,23 +217,15 @@ const getProfile = async (req, res, next) => {
 const getAvailableTeams = async (req, res, next) => {
   try {
     const teams = await Team.findAll({
-      attributes: ['id', 'name', 'shortName'],
+      attributes: ['id', 'name', 'shortName', 'ownerId'],
       order: [['name', 'ASC']]
     });
-
-    // Check which teams already have owners
-    const teamsWithOwners = await User.findAll({
-      where: { role: 'TEAM_OWNER' },
-      attributes: ['teamId']
-    });
-
-    const ownerTeamIds = teamsWithOwners.map(u => u.teamId);
 
     const availableTeams = teams.map(team => ({
       id: team.id,
       name: team.name,
       shortName: team.shortName,
-      hasOwner: ownerTeamIds.includes(team.id)
+      hasOwner: !!team.ownerId
     }));
 
     return response.success(res, availableTeams, 'Teams retrieved successfully');

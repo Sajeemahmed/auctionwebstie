@@ -1,5 +1,5 @@
 // src/seeders/seedDatabase.js
-const { Season } = require('../models');
+const { Season, Team } = require('../models');
 const logger = require('../utils/logger');
 
 const seedDatabase = async () => {
@@ -19,7 +19,26 @@ const seedDatabase = async () => {
       return season;
     } else {
       logger.info('Default season already exists');
-      return existingSeason;
+    }
+
+    // Seed teams if they don't exist
+    const existingTeams = await Team.count();
+    if (existingTeams === 0) {
+      const season = await Season.findOne({ where: { seasonNumber: 1 } });
+      
+      const teams = [
+        { name: 'Royal Warriors', shortName: 'RW', seasonId: season.id, purse: 10000000, ownerId: null },
+        { name: 'Thunder Knights', shortName: 'TK', seasonId: season.id, purse: 10000000, ownerId: null },
+        { name: 'Storm Titans', shortName: 'ST', seasonId: season.id, purse: 10000000, ownerId: null },
+        { name: 'Fire Eagles', shortName: 'FE', seasonId: season.id, purse: 10000000, ownerId: null },
+        { name: 'Ice Dragons', shortName: 'ID', seasonId: season.id, purse: 10000000, ownerId: null },
+        { name: 'Golden Lions', shortName: 'GL', seasonId: season.id, purse: 10000000, ownerId: null },
+      ];
+
+      await Team.bulkCreate(teams);
+      logger.info(`${teams.length} teams created`);
+    } else {
+      logger.info(`Teams already exist: ${existingTeams}`);
     }
   } catch (error) {
     logger.error('Error seeding database:', error);

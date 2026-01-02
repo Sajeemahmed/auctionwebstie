@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const { authenticate } = require('../middleware/authMiddleware');
+const authMiddleware = require('../middleware/authMiddleware');
 
 /**
  * Auth Routes
@@ -15,7 +15,7 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 
 // Get current user profile (protected)
-router.get('/me', authenticate, authController.getProfile);
+router.get('/me', authMiddleware, authController.getProfile);
 
 // Get available teams for registration
 router.get('/teams', authController.getAvailableTeams);
