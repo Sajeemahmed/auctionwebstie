@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from 'sonner';
 import useAuctionStore from '../../store/auctionStore';
 import socketService from '../../services/socketService';
+import auctionService from '../../services/auctionService';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -105,9 +106,16 @@ const AdminAuction = () => {
     ? getUnsoldPlayers()
     : getAvailablePlayers(currentCategory);
 
-  const handleSold = () => {
+  const handleSold = async () => {
     if (!currentBid || !currentBid.teamId) {
       toast.error('No valid bid to confirm sale');
+      return;
+    }
+
+    // Update backend first
+    const apiResult = await auctionService.markPlayerSold(1, currentPlayer.id);
+    if (!apiResult.success) {
+      toast.error(apiResult.error || 'Failed to mark player as sold');
       return;
     }
 
@@ -122,13 +130,23 @@ const AdminAuction = () => {
 
       setShowSoldDialog(true);
       toast.success(`Player sold to ${currentBid.teamName}!`);
+      await fetchPlayers();
+      await fetchTeams();
     }
   };
 
-  const handleUnsold = () => {
+  const handleUnsold = async () => {
+    const apiResult = await auctionService.markPlayerUnsold(1, currentPlayer.id);
+    if (!apiResult.success) {
+      toast.error(apiResult.error || 'Failed to mark player as unsold');
+      return;
+    }
+
     const result = unsoldPlayer();
     if (result.success) {
       toast.info('Player marked as unsold');
+      await fetchPlayers();
+      await fetchTeams();
     }
   };
 

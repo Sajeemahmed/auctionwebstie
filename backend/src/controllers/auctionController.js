@@ -277,8 +277,9 @@ const placeBid = async (req, res, next) => {
       return response.badRequest(res, `Minimum bid increment is ₹${MIN_BID_INCREMENT}`);
     }
 
-    // Check team purse
-    if (bidAmount > team.initial_purse) {
+    // Check team purse (use remainingPurse if available, otherwise fallback)
+    const teamPurse = team.remainingPurse ?? team.initialPurse ?? team.initial_purse ?? 0;
+    if (bidAmount > teamPurse) {
       BidSocket.bidInvalid({
         teamId,
         reason: 'Insufficient purse balance',
@@ -315,7 +316,7 @@ const placeBid = async (req, res, next) => {
     const bidHistory = await Bid.findAll({
       where: { seasonId, playerId },
       include: [{ model: Team, attributes: ['id', 'name', 'shortName'] }],
-      order: [['createdAt', 'DESC']],
+      order: [['bid_time', 'DESC']],
       limit: 10
     });
 
@@ -354,9 +355,9 @@ const placeBid = async (req, res, next) => {
       },
       totalBids: bidHistory.length,
       bidHistory: bidHistory.map(b => ({
-        teamName: b.Team.name,
+        teamName: b.Team ? b.Team.name : `Team ${b.teamId}`,
         amount: b.bidAmount,
-        timestamp: b.createdAt
+        timestamp: b.bid_time
       }))
     });
 
@@ -411,9 +412,10 @@ const markPlayerSold = async (req, res, next) => {
       soldPrice: finalAmount
     });
 
-    // Update team purse
+    // Update team purse (use remainingPurse column)
+    const newRemainingPurse = (team.remainingPurse ?? team.initialPurse ?? team.initial_purse ?? 0) - finalAmount;
     await team.update({
-      purse: team.initial_purse - finalAmount
+      remainingPurse: newRemainingPurse
     });
 
     // Create purchase record
@@ -467,9 +469,9 @@ const markPlayerSold = async (req, res, next) => {
     BidSocket.teamPurseUpdated({
       teamId: team.id,
       teamName: team.name,
-      remainingPurse: team.purse,
+      remainingPurse: newRemainingPurse,
       spentAmount: finalAmount,
-      canBid: team.purse > 0
+      canBid: newRemainingPurse > 0
     });
 
     logger.info(`Player ${player.name} manually sold to ${team.name} for ₹${finalAmount}`);
@@ -562,7 +564,7 @@ const getBidHistory = async (req, res, next) => {
           attributes: ['id', 'name', 'shortName']
         }
       ],
-      order: [['createdAt', 'DESC']]
+      order: [['bid_time', 'DESC']]
     });
 
     return response.success(res, bids, 'Bid history retrieved successfully');

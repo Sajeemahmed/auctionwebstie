@@ -193,7 +193,7 @@ const useAuctionStore = create(
         }
       },
       
-      placeBid: (teamId, amount) => {
+      placeBid: async (teamId, amount) => {
         const { teams, currentBid, currentPlayer } = get();
         const team = teams.find(t => t.id === teamId);
         
@@ -201,6 +201,38 @@ const useAuctionStore = create(
         if (team.purse < amount) return { success: false, error: 'Insufficient purse' };
         if (team.players.length >= team.maxPlayers) return { success: false, error: 'Team full' };
         if (currentBid && amount <= currentBid.amount) return { success: false, error: 'Bid must be higher' };
+        // Enforce backend minimum increment (5000)
+        const minIncrement = 5000;
+        const baseline = currentBid?.amount || currentPlayer.basePrice;
+        if (amount - baseline < minIncrement) {
+          return { success: false, error: `Minimum increment is ₹${minIncrement}` };
+        }
+
+        // Try backend first so bids persist
+        try {
+          const token = localStorage.getItem('authToken');
+          const response = await fetch('http://localhost:5000/api/auction/bid', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({
+              seasonId: 1,
+              playerId: currentPlayer.id,
+              teamId,
+              bidAmount: amount
+            })
+          });
+
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            return { success: false, error: err.message || 'Failed to place bid' };
+          }
+        } catch (error) {
+          console.error('Backend bid error, falling back to local:', error);
+          // fall through to local update
+        }
         
         const newBid = { amount, teamId, teamName: team.name, timestamp: Date.now() };
         
