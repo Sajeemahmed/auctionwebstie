@@ -31,9 +31,12 @@ const OwnerBidding = () => {
     timer,
     auctionStatus,
     placeBid,
+    fetchTeams,
+    fetchPlayers,
   } = useAuctionStore();
 
   const [isPlacingBid, setIsPlacingBid] = useState(false);
+  const [customBid, setCustomBid] = useState('');
   
   useEffect(() => {
     AOS.init({
@@ -43,7 +46,15 @@ const OwnerBidding = () => {
     });
   }, []);
 
-  const myTeam = teams.find(t => t.id === currentUser?.teamId);
+  // Load live data from backend so owners get their actual team info
+  useEffect(() => {
+    fetchTeams();
+    fetchPlayers();
+  }, [fetchTeams, fetchPlayers]);
+
+  const myTeam = teams.find(
+    t => String(t.id) === String(currentUser?.teamId || currentUser?.team?.id || '')
+  );
   const isLeading = currentBid?.teamId === currentUser?.teamId;
 
   const bidIncrements = [
@@ -87,6 +98,35 @@ const OwnerBidding = () => {
     }
 
     setIsPlacingBid(false);
+  };
+
+  const handleCustomBid = () => {
+    if (!currentPlayer || !myTeam) return;
+
+    const parsed = parseInt(customBid, 10);
+    if (isNaN(parsed) || parsed <= (currentBid?.amount || currentPlayer.basePrice)) {
+      toast.error('Enter an amount higher than the current bid.');
+      return;
+    }
+
+    if (parsed > myTeam.purse) {
+      toast.error('Insufficient purse!');
+      return;
+    }
+
+    const result = placeBid(myTeam.id, parsed);
+    if (result.success) {
+      confetti({
+        particleCount: 30,
+        spread: 50,
+        origin: { y: 0.8 },
+        colors: ['#E50914', '#ffffff']
+      });
+      toast.success(`Custom bid placed: ${formatCurrency(parsed)}`);
+      setCustomBid('');
+    } else {
+      toast.error(result.error || 'Failed to place bid');
+    }
   };
 
   return (
@@ -159,7 +199,7 @@ const OwnerBidding = () => {
             />
 
             {/* Bidding Controls */}
-            {currentPlayer && auctionStatus === 'running' && (
+            {currentPlayer && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -200,12 +240,12 @@ const OwnerBidding = () => {
                             <Button
                               size="lg"
                               className={`w-full h-16 flex flex-col font-heading tracking-wider ${
-                                canAfford && !isLeading
+                                canAfford
                                   ? 'bg-[#E50914] hover:bg-[#F40612] text-white'
                                   : 'bg-[#333] text-gray-500 cursor-not-allowed'
                               }`}
                               onClick={() => handlePlaceBid(increment.value)}
-                              disabled={isPlacingBid || isLeading || !canAfford || timer === 0}
+                              disabled={isPlacingBid || !canAfford || timer === 0}
                             >
                               <span className="text-lg font-bold">{increment.label}</span>
                               <span className="text-xs opacity-80">{formatCurrency(newTotal)}</span>
@@ -213,6 +253,25 @@ const OwnerBidding = () => {
                           </motion.div>
                         );
                       })}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-center">
+                      <input
+                        type="number"
+                        min={(currentBid?.amount || currentPlayer.basePrice) + 1}
+                        placeholder={`Enter more than ${formatCurrency(currentBid?.amount || currentPlayer.basePrice)}`}
+                        value={customBid}
+                        onChange={(e) => setCustomBid(e.target.value)}
+                        className="w-full h-12 rounded-md bg-[#333] text-white px-3 border border-[#444] outline-none focus:border-[#E50914]"
+                      />
+                      <Button
+                        size="lg"
+                        className="w-full sm:w-auto bg-[#E50914] hover:bg-[#F40612] text-white"
+                        onClick={handleCustomBid}
+                        disabled={isPlacingBid || timer === 0}
+                      >
+                        Place Custom Bid
+                      </Button>
                     </div>
 
                     <div className="mt-4 text-center">

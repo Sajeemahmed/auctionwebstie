@@ -270,7 +270,6 @@ const useAuctionStore = create(
         
         return { success: true };
       },
-      
       // Timer Actions
       decrementTimer: () => {
         const { timer, isTimerRunning } = get();
@@ -355,6 +354,11 @@ const useAuctionStore = create(
                 name: p.name,
                 category: p.category,
                 role: p.playerType || p.role || 'All-Rounder', // Use playerType from backend
+                playerType: p.playerType,
+                battingHand: p.battingHand,
+                battingPosition: p.battingPosition,
+                bowlingArm: p.bowlingArm,
+                bowlingType: p.bowlingType,
                 basePrice: parseFloat(p.basePrice) || 0,
                 rating: parseFloat(p.rating) || 3,
                 status: status,
@@ -383,16 +387,16 @@ const useAuctionStore = create(
           });
 
           if (response.ok) {
-            const data = await response.json();
-            const teams = (data.data || []).map(t => ({
-              id: t.id,
-              name: t.name,
-              shortName: t.shortName,
-              purse: t.purse || t.initial_purse || 10000000, // Backend uses initial_purse
-              maxPlayers: t.maxPlayers || 15,
-              players: t.players || [],
-              color: t.color || `#${Math.floor(Math.random()*16777215).toString(16)}`
-            }));
+              const data = await response.json();
+              const teams = (data.data || []).map(t => ({
+                id: t.id,
+                name: t.name,
+                shortName: t.shortName,
+                purse: t.remainingPurse || t.purse || t.initialPurse || t.initial_purse || 10000000,
+                maxPlayers: t.maxSquadSize || t.maxPlayers || 15,
+                players: t.players || [],
+                color: t.color || `#${Math.floor(Math.random()*16777215).toString(16)}`
+              }));
             set({ teams });
             console.log('Fetched teams:', teams.length);
             return teams;

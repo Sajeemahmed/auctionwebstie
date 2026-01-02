@@ -5,6 +5,16 @@ import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
 import BidTimer from './BidTimer';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const getPhotoUrl = (photoUrl) => {
+  if (!photoUrl) return '/default-player.png';
+  if (photoUrl.startsWith('http')) return photoUrl;
+  // Remove /api from API_BASE_URL if present and add the photoUrl
+  const baseUrl = API_BASE_URL.replace('/api', '');
+  return `${baseUrl}${photoUrl}`;
+};
+
 const formatCurrency = (amount) => {
   if (amount >= 100000) {
     return `₹${(amount / 100000).toFixed(2)} Lakh`;
@@ -77,9 +87,13 @@ const CurrentPlayerDisplay = ({ player, currentBid, bidHistory, showTimer = true
                 className="relative w-48 h-48 flex-shrink-0"
               >
                 <img
-                  src={player.photo}
+                  src={getPhotoUrl(player.photo || player.photoUrl)}
                   alt={player.name}
                   className="w-full h-full object-cover rounded-xl shadow-xl"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=random&size=200`;
+                  }}
                 />
                 <div className="absolute inset-0 rounded-xl ring-4 ring-primary/30" />
               </motion.div>
@@ -95,22 +109,63 @@ const CurrentPlayerDisplay = ({ player, currentBid, bidHistory, showTimer = true
                 </motion.h2>
                 
                 <p className="text-lg text-muted-foreground mb-3">{player.role}</p>
-                
+
                 {/* Rating */}
                 <div className="flex items-center gap-2 mb-4">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
                       className={`h-6 w-6 ${
-                        i < player.rating 
-                          ? 'text-warning fill-warning' 
+                        i < player.rating
+                          ? 'text-warning fill-warning'
                           : 'text-muted'
                       }`}
                     />
                   ))}
                   <span className="ml-2 text-muted-foreground">({player.rating}/5)</span>
                 </div>
-                
+
+                {/* Player Details Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {/* Player Type */}
+                  {player.playerType && (
+                    <div className="bg-muted/50 rounded-lg p-2">
+                      <p className="text-xs text-muted-foreground">Player Type</p>
+                      <p className="font-semibold text-sm">
+                        {player.playerType === 'ALL_ROUNDER' ? 'All-Rounder' :
+                         player.playerType === 'WICKET_KEEPER' ? 'Wicket Keeper' :
+                         player.playerType.charAt(0) + player.playerType.slice(1).toLowerCase()}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Batting Hand */}
+                  {player.battingHand && (
+                    <div className="bg-muted/50 rounded-lg p-2">
+                      <p className="text-xs text-muted-foreground">Batting Hand</p>
+                      <p className="font-semibold text-sm">
+                        {player.battingHand === 'RH' ? 'Right Hand' : 'Left Hand'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Bowling Arm */}
+                  {player.bowlingArm && (
+                    <div className="bg-muted/50 rounded-lg p-2">
+                      <p className="text-xs text-muted-foreground">Bowling Arm</p>
+                      <p className="font-semibold text-sm">{player.bowlingArm}</p>
+                    </div>
+                  )}
+
+                  {/* Bowling Type */}
+                  {player.bowlingType && (
+                    <div className="bg-muted/50 rounded-lg p-2">
+                      <p className="text-xs text-muted-foreground">Bowling Type</p>
+                      <p className="font-semibold text-sm">{player.bowlingType}</p>
+                    </div>
+                  )}
+                </div>
+
                 {/* Base Price */}
                 <div className="bg-muted rounded-lg p-3 inline-block">
                   <p className="text-xs text-muted-foreground">Base Price</p>
