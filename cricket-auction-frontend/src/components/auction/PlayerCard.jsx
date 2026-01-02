@@ -180,6 +180,74 @@ const PlayerCard = ({ player, showBidButton, onBringToBid, isHighlighted, size =
           {/* Base Price and Rating */}
           <div className="mt-3 pt-3 border-t border-gray-100">
             <div className="flex items-center justify-between gap-4">
+          
+          {/* Player Info */}
+          <div className={`p-4 ${isLarge ? 'flex-1 flex flex-col justify-center' : ''}`}>
+            <h3 className={`font-heading font-bold text-foreground ${
+              isLarge ? 'text-2xl' : 'text-lg'
+            } mb-1 tracking-wider`}>
+              {player.name.toUpperCase()}
+            </h3>
+            
+            <p className="text-muted-foreground text-sm mb-2">{player.role}</p>
+
+            {/* Rating */}
+            <div className="flex items-center gap-1 mb-3">
+              {[...Array(5)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  whileHover={{ scale: 1.2, rotate: 10 }}
+                >
+                  <Star
+                    className={`h-4 w-4 ${
+                      i < player.rating
+                        ? 'text-accent fill-accent'
+                        : 'text-muted/30'
+                    }`}
+                  />
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Player Details */}
+            <div className="space-y-1.5 mb-3">
+              {player.playerType && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Type:</span>
+                  <span className="font-medium">
+                    {player.playerType === 'ALL_ROUNDER' ? 'All-Rounder' :
+                     player.playerType === 'WICKET_KEEPER' ? 'Wicket Keeper' :
+                     player.playerType.charAt(0) + player.playerType.slice(1).toLowerCase()}
+                  </span>
+                </div>
+              )}
+
+              {player.battingHand && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Batting:</span>
+                  <span className="font-medium">
+                    {player.battingHand === 'RH' ? 'Right Hand' : 'Left Hand'}
+                  </span>
+                </div>
+              )}
+
+              {player.bowlingArm && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Bowling Arm:</span>
+                  <span className="font-medium">{player.bowlingArm}</span>
+                </div>
+              )}
+
+              {player.bowlingType && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Bowling Type:</span>
+                  <span className="font-medium">{player.bowlingType}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Price */}
+            <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500 font-semibold mb-1">Base Price</p>
                 <p className="text-lg font-bold text-orange-600">
