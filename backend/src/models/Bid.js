@@ -48,8 +48,6 @@ module.exports = (sequelize) => {
       { fields: ['season_id'] },
       { fields: ['player_id'] },
       { fields: ['team_id'] },
-      { fields: ['is_winning'] },
-      { fields: ['bid_time'] },
       { fields: ['player_id', 'is_winning'] }
     ]
   });

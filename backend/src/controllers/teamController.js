@@ -422,11 +422,10 @@ const updateTeamLogo = async (req, res, next) => {
       return response.error(res, 'No logo file uploaded', 400);
     }
 
-    const logoPath = `/uploads/teams/${req.file.filename}`;
+    const logoPath = `/uploads/team_logo/${req.file.filename}`;
 
     await team.update({ 
-      logoImage: logoPath,
-      logoUrl: logoPath  // Also update logoUrl for backward compatibility
+      logoUrl: logoPath  // Persist to logo_url column
     });
 
     logger.info(`Team logo updated: ${team.name} - Logo: ${logoPath}`);
@@ -435,7 +434,7 @@ const updateTeamLogo = async (req, res, next) => {
       { 
         id: team.id, 
         name: team.name, 
-        logoImage: team.logoImage,
+        logoImage: logoPath, // Include for front-end compatibility
         logoUrl: team.logoUrl
       }, 
       'Team logo updated successfully'

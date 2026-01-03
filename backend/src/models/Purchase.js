@@ -49,9 +49,7 @@ module.exports = (sequelize) => {
     indexes: [
       { fields: ['season_id'] },
       { fields: ['player_id'] },
-      { fields: ['team_id'] },
-      { fields: ['purchased_at'] },
-      { fields: ['team_id', 'season_id'] }
+      { fields: ['team_id'] }
     ]
   });
 
