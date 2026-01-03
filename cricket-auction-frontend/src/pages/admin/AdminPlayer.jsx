@@ -230,7 +230,7 @@ D002,Ishan Kishan,D,WICKET_KEEPER,LH,Top Order,,,1998-07-18,4.2,95000`;
                 >
                   <Sparkles className="h-8 w-8 text-primary" />
                 </motion.div>
-                <h1 className="font-black text-4xl bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                <h1 className="font-bold text-4xl bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
                   Player Management
                 </h1>
               </div>
