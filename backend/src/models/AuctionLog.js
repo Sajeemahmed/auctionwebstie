@@ -50,10 +50,8 @@ module.exports = (sequelize) => {
     underscored: true,
     indexes: [
       { fields: ['season_id'] },
-      { fields: ['event_type'] },
       { fields: ['player_id'] },
-      { fields: ['team_id'] },
-      { fields: ['created_at'] }
+      { fields: ['team_id'] }
     ]
   });
 

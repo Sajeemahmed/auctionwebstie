@@ -72,6 +72,10 @@ const AdminTeams = () => {
   
   const [editTeamName, setEditTeamName] = useState("");
   const [editTeamShortName, setEditTeamShortName] = useState("");
+  const [editOwnerName, setEditOwnerName] = useState("");
+  const [editTagline, setEditTagline] = useState("");
+  const [editLogoFile, setEditLogoFile] = useState(null);
+  const [editLogoPreview, setEditLogoPreview] = useState(null);
   const [purseAmount, setPurseAmount] = useState("");
   const [initialPurse, setInitialPurse] = useState("10000000");
   const [loading, setLoading] = useState(false);
@@ -116,6 +120,28 @@ const AdminTeams = () => {
   const removeLogo = () => {
     setLogoFile(null);
     setLogoPreview(null);
+  };
+
+  const handleEditLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Logo must be less than 5MB");
+        return;
+      }
+      
+      setEditLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeEditLogo = () => {
+    setEditLogoFile(null);
+    setEditLogoPreview(null);
   };
 
   const addSponsor = () => {
@@ -221,6 +247,11 @@ const AdminTeams = () => {
     setShowDetailsDialog(true);
   };
 
+  const handleOpenDetailsDialog = (team) => {
+    setSelectedTeam(team);
+    setShowDetailsDialog(true);
+  };
+
   const handleDeleteTeam = async (teamId) => {
     if (window.confirm("Are you sure you want to delete this team?")) {
       const result = await teamService.deleteTeam(teamId);
@@ -237,6 +268,14 @@ const AdminTeams = () => {
     setSelectedTeam(team);
     setEditTeamName(team.name);
     setEditTeamShortName(team.shortName || "");
+    setEditOwnerName(team.ownerName || "");
+    setEditTagline(team.tagline || "");
+    setEditLogoPreview(
+      team.logoImage || team.logoUrl
+        ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${team.logoImage || team.logoUrl}`
+        : null
+    );
+    setEditLogoFile(null);
     setShowEditDialog(true);
   };
 
@@ -247,14 +286,34 @@ const AdminTeams = () => {
     }
 
     setIsUpdating(true);
-    const result = await teamService.updateTeam(selectedTeam.id, {
+    
+    // Prepare update data
+    const updateData = {
       name: editTeamName.trim(),
       shortName: editTeamShortName.trim() || editTeamName.substring(0, 3).toUpperCase(),
-    });
+      ownerName: editOwnerName.trim(),
+      tagline: editTagline.trim(),
+    };
+
+    // Handle logo upload if a new file was selected
+    if (editLogoFile) {
+      const logoResult = await teamService.uploadTeamLogo(selectedTeam.id, editLogoFile);
+      if (logoResult.success) {
+        updateData.logoUrl = logoResult.data.logoUrl;
+      } else {
+        toast.error("Failed to upload logo: " + logoResult.error);
+        setIsUpdating(false);
+        return;
+      }
+    }
+
+    const result = await teamService.updateTeam(selectedTeam.id, updateData);
 
     if (result.success) {
       await fetchTeams();
       setShowEditDialog(false);
+      setEditLogoFile(null);
+      setEditLogoPreview(null);
       toast.success("Team updated successfully!");
     } else {
       toast.error("Failed to update team: " + result.error);
@@ -324,10 +383,10 @@ const AdminTeams = () => {
           className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8"
         >
           <div>
-            <h1 className="font-heading text-3xl font-bold text-foreground">
+            <h1 className="font-bold text-4xl bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
               Team Management
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-gray-600 mt-1">
               {dbTeams.length > 0
                 ? `${dbTeams.length} teams registered`
                 : "No teams created yet"}
@@ -336,9 +395,8 @@ const AdminTeams = () => {
 
           <div className="flex gap-2">
             <Button
-              variant="default"
               onClick={() => setShowAddDialog(true)}
-              className="gap-2"
+              className="gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-semibold"
             >
               <Plus className="h-4 w-4" />
               Create Team
@@ -349,216 +407,163 @@ const AdminTeams = () => {
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center h-64">
-            <Loader className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Loader className="h-8 w-8 animate-spin text-gray-400" />
           </div>
         )}
 
-    {/* Teams Grid */}
-{!loading && (
-  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-    {dbTeams.length > 0 ? (
-      dbTeams.map((team, index) => {
-        const spent = (team.initialPurse || 10000000) - (team.remainingPurse || 0);
-        const spentPercentage = (spent / (team.initialPurse || 10000000)) * 100;
-        const players = team.Players || [];
-        const teamSponsors = team.sponsors || [];
+        {/* Teams Grid */}
+        {!loading && (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {dbTeams.length > 0 ? (
+              dbTeams.map((team, index) => {
+                const spent = (team.initialPurse || 10000000) - (team.remainingPurse || 0);
+                const spentPercentage = (spent / (team.initialPurse || 10000000)) * 100;
+                const players = team.Players || [];
+                const teamSponsors = team.sponsors || [];
 
-        return (
-          <motion.div
-            key={team.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-              {/* Team Header with Better Logo */}
-              <div className="h-32 relative bg-gradient-to-r from-blue-500 to-blue-600">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-foreground/20" />
-                <div className="absolute bottom-4 left-4 right-4 flex items-center gap-3">
-                  {/* Larger Logo Display */}
-                  <div className="w-16 h-16 rounded-xl bg-background shadow-xl flex items-center justify-center overflow-hidden ring-2 ring-white/20">
-                    {team.logoImage || team.logoUrl ? (
-                      <img 
-                        src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${team.logoImage || team.logoUrl}`}
-                        alt={team.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          console.error('Image failed to load:', team.logoImage || team.logoUrl);
-                          e.target.style.display = 'none';
-                          e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg></div>';
-                        }}
-                      />
-                    ) : (
-                      <Trophy className="h-8 w-8 text-blue-600" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-heading font-bold text-xl text-primary-foreground">
-                      {team.name}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="text-xs">
-                        {players.length}/{team.maxSquadSize || 15} Players
-                      </Badge>
-                      {team.shortName && (
-                        <Badge variant="outline" className="text-xs bg-white/20 text-white border-white/30">
-                          {team.shortName}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <CardContent className="p-6">
-                {/* Owner & Tagline */}
-                {(team.ownerName || team.tagline) && (
-                  <div className="mb-4 p-3 rounded-lg bg-muted/30 space-y-2">
-                    {team.ownerName && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <UserCircle className="h-4 w-4 text-primary" />
-                        <span className="text-muted-foreground">Owner:</span>
-                        <span className="font-semibold text-foreground">{team.ownerName}</span>
-                      </div>
-                    )}
-                    {team.tagline && (
-                      <div className="flex items-start gap-2 text-sm">
-                        <Tag className="h-4 w-4 text-primary mt-0.5" />
-                        <span className="text-muted-foreground italic">"{team.tagline}"</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Sponsors */}
-                {teamSponsors.length > 0 && (
-                  <div className="mb-4 p-3 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Building2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                      <span className="text-sm font-semibold text-purple-900 dark:text-purple-100">
-                        Sponsors ({teamSponsors.length})
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {teamSponsors.map((sponsor, idx) => (
-                        <Badge 
-                          key={idx} 
-                          variant="secondary" 
-                          className="text-xs bg-purple-100 text-purple-900 dark:bg-purple-900 dark:text-purple-100"
-                        >
-                          {sponsor.name}
-                          {sponsor.amount > 0 && (
-                            <span className="ml-1 opacity-70">
-                              • ₹{(sponsor.amount / 100000).toFixed(1)}L
-                            </span>
-                          )}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Purse Info */}
-                <div className="space-y-4">
-                  <div
-                    className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => handleOpenPurseDialog(team)}
+                return (
+                  <motion.div
+                    key={team.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    whileHover={{ scale: 1.05, y: -8 }}
+                    className="group h-full"
                   >
-                    <div className="flex items-center gap-2">
-                      <Wallet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                        Purse Left
-                      </span>
-                    </div>
-                    <span className="font-bold text-blue-700 dark:text-blue-300 text-lg">
-                      {formatCurrency(team.remainingPurse || 10000000)}
-                    </span>
-                  </div>
+                    <Card className="relative overflow-hidden transition-all duration-300 flex flex-col h-full border border-gray-200 bg-white hover:shadow-lg hover:border-red-300">
+                      {/* Team Header - Logo and Name Section */}
+                      <div className="px-4 py-4 flex items-center gap-4 border-b border-gray-100 bg-white">
+                        {/* Logo */}
+                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-red-500 to-red-600 shadow-lg flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-red-300">
+                          {team.logoImage || team.logoUrl ? (
+                            <img
+                              src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${team.logoImage || team.logoUrl}`}
+                              alt={team.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="h-8 w-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg></div>';
+                              }}
+                            />
+                          ) : (
+                            <Trophy className="h-8 w-8 text-white" />
+                          )}
+                        </div>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Spent: {formatCurrency(spent)}</span>
-                      <span>
-                        Initial: {formatCurrency(team.initialPurse || 10000000)}
-                      </span>
-                    </div>
-                    <Progress value={spentPercentage} className="h-2" />
-                  </div>
+                        {/* Team Name */}
+                        <div className="flex-grow">
+                          <motion.h3
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="font-bold text-lg leading-tight"
+                          >
+                            {team.name}
+                            {team.shortName && (
+                              <span className="text-red-600 ml-2 font-bold text-sm">[{team.shortName}]</span>
+                            )}
+                          </motion.h3>
+                        </div>
+                      </div>
 
-                  {/* Team Info */}
-                  <div className="pt-4 border-t border-border space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Short Name:</span>
-                      <Badge variant="outline">{team.shortName || "N/A"}</Badge>
-                    </div>
-                  </div>
+                      {/* Content Section */}
+                      <div className="px-4 py-3 flex-grow flex flex-col justify-between bg-white">
+                        {/* Owner and Tagline Info */}
+                        <div>
+                          {/* Owner Info */}
+                          {team.ownerName && (
+                            <motion.p
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.05 }}
+                              className="text-red-700 text-xs font-semibold uppercase tracking-wide"
+                            >
+                              👤 Owner: {team.ownerName}
+                            </motion.p>
+                          )}
 
-                  {/* Primary Actions */}
-                  <div className="flex gap-2 pt-4">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleOpenPurseDialog(team)}
-                    >
-                      <Wallet className="h-4 w-4 mr-1" />
-                      Balance
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleViewTeam(team)}
-                    >
-                      <Users className="h-4 w-4 mr-1" />
-                      Squad
-                    </Button>
-                  </div>
+                          {/* Tagline */}
+                          {team.tagline && (
+                            <motion.p
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.1 }}
+                              className="text-gray-600 text-xs italic mt-1 line-clamp-2"
+                            >
+                              "{team.tagline}"
+                            </motion.p>
+                          )}
+                        </div>
 
-                  {/* Secondary Actions */}
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleEditTeam(team)}
-                    >
-                      <Edit2 className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleDownloadTeam(team)}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleDeleteTeam(team.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        );
-      })
-    ) : (
-      <div className="col-span-full text-center py-12">
-        <Trophy className="h-16 w-16 mx-auto mb-4 opacity-20" />
-        <p className="text-lg text-muted-foreground">No teams created yet</p>
-        <p className="text-sm text-muted-foreground mt-2">
-          Click 'Create Team' to add your first team
-        </p>
-      </div>
-    )}
-  </div>
-)}
+                        {/* Team Stats */}
+                        <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+                          {/* Players Count */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500 font-semibold">Players</span>
+                            <Badge variant="secondary" className="bg-red-100 text-red-700 text-xs">
+                              {players.length}/{team.maxSquadSize || 15}
+                            </Badge>
+                          </div>
+
+                          {/* Purse Info */}
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs text-gray-500 font-semibold">Purse Left</span>
+                              <span className="text-sm font-bold text-orange-600">
+                                {formatCurrency(team.remainingPurse || 10000000)}
+                              </span>
+                            </div>
+                            <Progress value={spentPercentage} className="h-2" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex gap-2">
+                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenDetailsDialog(team)}
+                            className="w-full text-xs border-red-300 text-red-600 hover:bg-red-50"
+                          >
+                            View Details
+                          </Button>
+                        </motion.div>
+                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditTeam(team)}
+                            className="text-xs border-gray-300 hover:bg-gray-100"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </motion.div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                );
+              })
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="col-span-full flex flex-col items-center justify-center py-12"
+              >
+                <Trophy className="h-16 w-16 text-gray-300 mb-4" />
+                <h3 className="text-lg font-semibold text-gray-600 mb-2">No Teams Yet</h3>
+                <p className="text-gray-500 text-sm mb-4">Create your first team to get started</p>
+                <Button
+                  onClick={() => setShowAddDialog(true)}
+              className="gap-2 bg-red-600 hover:bg-red-700"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create First Team
+                </Button>
+              </motion.div>
+            )}
+          </div>
+        )}
 
         {/* Add Team Dialog */}
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -774,7 +779,7 @@ const AdminTeams = () => {
               <>
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-600 overflow-hidden">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-red-600 overflow-hidden">
                       {selectedTeam.logoImage || selectedTeam.logoUrl ? (
                         <img 
                           src={selectedTeam.logoImage || selectedTeam.logoUrl} 
@@ -848,13 +853,60 @@ const AdminTeams = () => {
 
         {/* Edit Team Dialog */}
         <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-          <DialogContent>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Team Details</DialogTitle>
-              <DialogDescription>Update team information</DialogDescription>
+              <DialogDescription>Update all team information including logo</DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
+            <div className="space-y-6 py-4">
+              {/* Team Logo */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Team Logo</label>
+                <div className="flex items-center gap-4">
+                  {editLogoPreview ? (
+                    <div className="relative">
+                      <img
+                        src={editLogoPreview}
+                        alt="Logo preview"
+                        className="w-20 h-20 rounded-lg object-cover border-2 border-border"
+                      />
+                      <button
+                        onClick={removeEditLogo}
+                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90"
+                        type="button"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+                      <Trophy className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <label
+                      htmlFor="edit-logo-input"
+                      className="flex items-center justify-center px-4 py-2 border border-border rounded-lg cursor-pointer hover:bg-muted text-sm font-medium"
+                    >
+                      Upload Logo
+                    </label>
+                    <input
+                      id="edit-logo-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditLogoChange}
+                      disabled={isUpdating}
+                      className="hidden"
+                    />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Max 5MB. Formats: JPG, PNG, GIF, WebP
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Team Name */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Team Name *</label>
                 <Input
@@ -865,6 +917,7 @@ const AdminTeams = () => {
                 />
               </div>
 
+              {/* Short Name */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Short Name</label>
                 <Input
@@ -875,12 +928,39 @@ const AdminTeams = () => {
                   disabled={isUpdating}
                 />
               </div>
+
+              {/* Owner Name */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Owner Name</label>
+                <Input
+                  placeholder="Enter owner/captain name"
+                  value={editOwnerName}
+                  onChange={(e) => setEditOwnerName(e.target.value)}
+                  disabled={isUpdating}
+                />
+              </div>
+
+              {/* Tagline */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Team Tagline</label>
+                <Textarea
+                  placeholder="e.g., 'Play with passion, win with pride'"
+                  value={editTagline}
+                  onChange={(e) => setEditTagline(e.target.value)}
+                  disabled={isUpdating}
+                  rows={3}
+                />
+              </div>
             </div>
 
             <DialogFooter>
               <Button
                 variant="outline"
-                onClick={() => setShowEditDialog(false)}
+                onClick={() => {
+                  setShowEditDialog(false);
+                  setEditLogoFile(null);
+                  setEditLogoPreview(null);
+                }}
                 disabled={isUpdating}
               >
                 Cancel
@@ -930,7 +1010,7 @@ const AdminTeams = () => {
                       <span className="text-muted-foreground">
                         Current Balance:
                       </span>
-                      <span className="font-semibold text-blue-600">
+                      <span className="font-semibold text-red-600">
                         {formatCurrency(selectedTeam.remainingPurse || 0)}
                       </span>
                     </div>

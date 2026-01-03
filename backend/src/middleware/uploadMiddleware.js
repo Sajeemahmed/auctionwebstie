@@ -7,10 +7,10 @@ const fs = require('fs');
 const uploadsDir = path.join(__dirname, '../../uploads');
 const playersDir = path.join(uploadsDir, 'players');
 const excelDir = path.join(uploadsDir, 'excel');
-const teamsDir = path.join(uploadsDir, 'teams');  // NEW
+const teamLogoDir = path.join(uploadsDir, 'team_logo');  // NEW destination for team logos
 const sponsorsDir = path.join(uploadsDir, 'sponsors');  // NEW
 
-[uploadsDir, playersDir, excelDir, teamsDir, sponsorsDir].forEach(dir => {
+[uploadsDir, playersDir, excelDir, teamLogoDir, sponsorsDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -30,7 +30,7 @@ const playerStorage = multer.diskStorage({
 // Storage for team logos  -- NEW
 const teamLogoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, teamsDir);
+    cb(null, teamLogoDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

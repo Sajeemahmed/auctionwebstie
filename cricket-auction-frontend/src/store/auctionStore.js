@@ -46,12 +46,12 @@ const generateMockPlayers = () => {
 
 // Mock teams
 const initialTeams = [
-  { id: 'team-1', name: 'Royal Warriors', purse: 10000000, maxPlayers: 15, players: [], color: '#3B82F6' },
-  { id: 'team-2', name: 'Thunder Knights', purse: 10000000, maxPlayers: 15, players: [], color: '#F59E0B' },
-  { id: 'team-3', name: 'Storm Titans', purse: 10000000, maxPlayers: 15, players: [], color: '#10B981' },
-  { id: 'team-4', name: 'Fire Eagles', purse: 10000000, maxPlayers: 15, players: [], color: '#EF4444' },
-  { id: 'team-5', name: 'Ice Dragons', purse: 10000000, maxPlayers: 15, players: [], color: '#8B5CF6' },
-  { id: 'team-6', name: 'Golden Lions', purse: 10000000, maxPlayers: 15, players: [], color: '#EC4899' },
+  { id: 'team-1', code: 'RW', name: 'Royal Warriors', purse: 10000000, maxPlayers: 15, players: [], color: '#3B82F6' },
+  { id: 'team-2', code: 'TK', name: 'Thunder Knights', purse: 10000000, maxPlayers: 15, players: [], color: '#F59E0B' },
+  { id: 'team-3', code: 'ST', name: 'Storm Titans', purse: 10000000, maxPlayers: 15, players: [], color: '#10B981' },
+  { id: 'team-4', code: 'FE', name: 'Fire Eagles', purse: 10000000, maxPlayers: 15, players: [], color: '#EF4444' },
+  { id: 'team-5', code: 'ID', name: 'Ice Dragons', purse: 10000000, maxPlayers: 15, players: [], color: '#8B5CF6' },
+  { id: 'team-6', code: 'GL', name: 'Golden Lions', purse: 10000000, maxPlayers: 15, players: [], color: '#EC4899' },
 ];
 
 const useAuctionStore = create(

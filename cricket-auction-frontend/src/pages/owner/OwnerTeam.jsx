@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Wallet, Users, Download, Star, TrendingUp } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
+import TeamHeader from '../../components/layout/TeamHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -58,46 +59,18 @@ const OwnerTeam = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
+      {/* New Team Header */}
+      <TeamHeader 
+        team={myTeam}
+        stats={{
+          playerCount: myTeam.players.length,
+          maxPlayers: myTeam.maxPlayers,
+          purseLeft: formatCurrency(myTeam.purse),
+          season: '8'
+        }}
+      />
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Team Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <Card
-            className="overflow-hidden"
-            style={{ borderTopColor: myTeam.color, borderTopWidth: '4px' }}
-          >
-            <CardContent className="p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                <div className="flex items-center gap-4">
-                  <div
-                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-primary-foreground shadow-xl"
-                    style={{ backgroundColor: myTeam.color }}
-                  >
-                    <Trophy className="h-10 w-10" />
-                  </div>
-                  <div>
-                    <h1 className="font-heading text-3xl font-bold text-foreground">
-                      {myTeam.name}
-                    </h1>
-                    <p className="text-muted-foreground">Season 8 Squad</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <Button variant="outline" onClick={handleDownload} className="gap-2">
-                    <Download className="h-4 w-4" />
-                    Download PDF
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Stats Cards */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
